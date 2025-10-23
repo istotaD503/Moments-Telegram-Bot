@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-Simple "Hello World" Telegram Bot
-This bot responds to the /start and /hello commands with greeting messages.
+Spanish Moments Telegram Bot
+A language learning bot that helps users practice Spanish by capturing daily story-worthy moments.
+
+Concept inspired by Matthew Dicks' "Homework for Life" combined with active language learning.
 """
 
 import logging
-import os
+import sys
 from typing import Final
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
-# Load environment variables from .env file
-load_dotenv()
+# Import our modular components
+from config.settings import settings
+from handlers.commands import BasicCommandHandlers
+from handlers.conversation import MomentConversationHandler, MomentCommandHandlers
 
 # Enable logging
 logging.basicConfig(
@@ -22,107 +24,62 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Bot token from environment variable
-TOKEN: Final = os.getenv('BOT_TOKEN')
-BOT_USERNAME: Final = os.getenv('BOT_USERNAME', '@your_bot')
-
-# Command handlers
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user_first_name = update.effective_user.first_name
-    welcome_message = (
-        f"👋 Hello {user_first_name}! Welcome to the Hello World Bot!\n\n"
-        "I'm a simple bot that responds to basic commands. Try these:\n"
-        "• /start - Show this welcome message\n"
-        "• /hello - Get a friendly greeting\n"
-        "• /help - Show available commands\n\n"
-        "You can also just send me any message and I'll respond!"
-    )
-    await update.message.reply_text(welcome_message)
-
-async def hello_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a hello message when the command /hello is issued."""
-    user_first_name = update.effective_user.first_name
-    hello_message = f"🌟 Hello there, {user_first_name}! Hope you're having the best day! 🌟"
-    await update.message.reply_text(hello_message)
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a help message when the command /help is issued."""
-    help_message = (
-        "🤖 *Hello World Bot Help*\n\n"
-        "*Available Commands:*\n"
-        "• `/start` - Welcome message and bot introduction\n"
-        "• `/hello` - Get a friendly greeting\n"
-        "• `/story` - Share your story-worthy moment\n"
-        "• `/help` - Show this help message\n\n"
-        "*About this bot:*\n"
-        "This is a simple 'Hello World' Telegram bot created for testing purposes. "
-        "It demonstrates basic bot functionality including command handling and message responses.\n\n"
-        "Send me any message and I'll echo it back with a friendly response! 😊"
-    )
-    await update.message.reply_text(help_message, parse_mode='Markdown')
-
-# --- Start /story command ---
-async def story(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📝 Tell me your most story-worthy moment of the day (in English):")
-    return ENGLISH
-
-# Message handler
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle incoming messages that are not commands."""
-    message_type: str = update.message.chat.type
-    text: str = update.message.text
-    user_first_name = update.effective_user.first_name
-
-    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
-
-    # Generate response
-    if 'hello' in text.lower():
-        response = f"Hello {user_first_name}! 👋 Thanks for saying hello!"
-    elif 'how are you' in text.lower():
-        response = "I'm doing great! Thanks for asking! 😊 How are you?"
-    elif 'bye' in text.lower() or 'goodbye' in text.lower():
-        response = f"Goodbye {user_first_name}! Have a wonderful day! 👋"
-    else:
-        response = f"Hi {user_first_name}! You said: '{text}'\n\nI'm a simple Hello World bot. Try sending /help to see what I can do! 🤖"
-
-    print('Bot:', response)
-    await update.message.reply_text(response)
-
-# Error handler
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log the error and send a telegram message to notify the developer."""
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
-
 def main() -> None:
-    """Start the bot."""
-    # Check if token is provided
-    if not TOKEN:
-        print("❌ Error: BOT_TOKEN not found in environment variables!")
+    """Start the Spanish Moments Bot."""
+    
+    # Validate configuration
+    if not settings.validate():
         print("Please create a .env file with your bot token:")
         print("BOT_TOKEN=your_telegram_bot_token_here")
-        return
+        sys.exit(1)
 
-    print(f"🤖 Starting Hello World Bot {BOT_USERNAME}...")
+    print(f"🤖 Starting Spanish Moments Bot {settings.BOT_USERNAME}...")
+    print(f"📁 Data directory: {settings.DATA_DIR}")
 
     # Create the Application
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(settings.BOT_TOKEN).build()
 
-    # Add command handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("hello", hello_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("story", story))
+    # Add conversation handler for moment capture (highest priority)
+    moment_conversation = MomentConversationHandler.get_conversation_handler()
+    app.add_handler(moment_conversation)
 
-    # Add message handler for non-command messages
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Add basic command handlers
+    app.add_handler(CommandHandler("start", BasicCommandHandlers.start_command))
+    app.add_handler(CommandHandler("help", BasicCommandHandlers.help_command))
+    
+    # Add moment management command handlers
+    app.add_handler(CommandHandler("recent", MomentCommandHandlers.show_recent_moments))
+    app.add_handler(CommandHandler("stats", MomentCommandHandlers.show_stats))
+    app.add_handler(CommandHandler("search", MomentCommandHandlers.search_moments))
+    app.add_handler(CommandHandler("export", MomentCommandHandlers.export_moments))
+
+    # Add handler for unknown commands
+    app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
+
+    # Add message handler for non-command messages (lowest priority)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, BasicCommandHandlers.handle_text_message))
 
     # Add error handler
-    app.add_error_handler(error_handler)
+    app.add_error_handler(BasicCommandHandlers.error_handler)
 
+    # Print startup information
+    print("✅ Bot handlers registered:")
+    print("   📝 /moment - Start moment capture conversation")
+    print("   📚 /recent - View recent moments")
+    print("   📊 /stats - Show learning statistics")
+    print("   🔍 /search - Search through moments")
+    print("   📄 /export - Export moments to file")
+    print("   ℹ️  /help - Show help message")
+    print("   🏠 /start - Welcome message")
+    
     # Run the bot until the user presses Ctrl-C
-    print("✅ Bot is running! Press Ctrl+C to stop.")
-    app.run_polling(poll_interval=1)
+    print("🚀 Spanish Moments Bot is running! Press Ctrl+C to stop.")
+    print("💡 Start a conversation with your bot and use /moment to capture your first story-worthy moment!")
+    
+    try:
+        app.run_polling(poll_interval=1)
+    except KeyboardInterrupt:
+        print("\n👋 Spanish Moments Bot stopped. ¡Hasta luego!")
 
 if __name__ == '__main__':
     main()

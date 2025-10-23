@@ -1,53 +1,216 @@
-# Moments-Telegram-Bot
+# Spanish Moments Bot
 
-A simple "Hello World" Telegram bot that demonstrates basic bot functionality.
+A Telegram bot that helps you practice Spanish by capturing and translating your daily story-worthy moments. Inspired by Matthew Dicks' "Homework for Life" concept combined with active language learning.
 
-## Features
+## 🌟 Concept
 
-- 👋 Responds to `/start` command with a welcome message
-- 🌟 Responds to `/hello` command with a friendly greeting
-- 📚 Provides help with `/help` command
-- 💬 Echoes back any text messages with friendly responses
-- 🤖 Handles basic conversation patterns (hello, how are you, bye)
+This bot helps you:
+1. **Capture daily moments** - Write about story-worthy moments from your day in English
+2. **Practice Spanish translation** - Attempt to translate your moment into Spanish
+3. **Receive feedback** - Get AI-powered corrections and explanations (Phase 2)
+4. **Track progress** - Monitor your learning journey with statistics and streaks
 
-## Prerequisites
+## ✨ Features
 
-- Python 3.7 or higher
-- A Telegram bot token (get one from [@BotFather](https://t.me/BotFather))
+### Phase 1 (Current Implementation)
+- 📝 **Moment Capture**: Multi-step conversation flow for capturing moments
+- 🇪🇸 **Spanish Practice**: Attempt Spanish translations of your moments
+- � **Persistent Storage**: All moments saved locally in JSON format
+- � **Progress Tracking**: View statistics and learning progress
+- 🔍 **Search & Review**: Find and review your past moments
+- 📄 **Export**: Download your moments as text files
 
-## Setup Instructions
+### Coming Soon (Phase 2+)
+- 🤖 **AI Feedback**: Detailed corrections and explanations
+- ⏰ **Daily Reminders**: Automatic prompts to capture moments
+- 📚 **Vocabulary Building**: Track and review learned words
+- 🎯 **Difficulty Progression**: Adaptive learning based on your level
+- 🎵 **Voice Support**: Practice pronunciation with voice messages
+
+## 🚀 Quick Start
 
 ### 1. Create Your Telegram Bot
 
-1. Open Telegram and search for [@BotFather](https://t.me/BotFather)
-2. Start a conversation and send `/newbot`
-3. Follow the instructions to create your bot:
-   - Choose a name for your bot (e.g., "My Hello World Bot")
-   - Choose a username for your bot (must end in 'bot', e.g., "my_hello_world_bot")
-4. Copy the bot token that BotFather gives you
+1. Message [@BotFather](https://t.me/BotFather) on Telegram
+2. Send `/newbot` and follow the instructions
+3. Save your bot token
 
 ### 2. Set Up the Project
 
-1. Clone this repository and navigate to the project directory:
 ```bash
+# Clone or download this repository
 cd "Moments Bot"
-```
 
-2. Create a virtual environment (recommended):
-```bash
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On macOS/Linux
-```
+# venv\Scripts\activate  # On Windows
 
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-4. Create your environment file:
-```bash
+# Create environment file
 cp .env.example .env
 ```
+
+### 3. Configure Your Bot
+
+Edit `.env` and add your bot token:
+```
+BOT_TOKEN=your_bot_token_from_botfather
+BOT_USERNAME=@your_bot_username
+```
+
+### 4. Run the Bot
+
+```bash
+python bot.py
+```
+
+## 🎯 How to Use
+
+### Basic Commands
+
+- `/start` - Welcome message and overview
+- `/moment` - Start capturing a new moment (main feature!)
+- `/recent` - View your recent moments
+- `/stats` - See your learning progress
+- `/search [term]` - Search through your moments
+- `/export` - Download all your moments
+- `/help` - Show all available commands
+
+### Capturing Your First Moment
+
+1. Send `/moment` to your bot
+2. Write about a story-worthy moment from your day in English
+3. The bot will ask you to translate it to Spanish
+4. Try your best - don't worry about perfection!
+5. Your moment is saved for future review
+
+### Example Flow
+
+```
+You: /moment
+
+Bot: ✨ Ready to capture a story-worthy moment?
+     Choose a prompt or write about any moment...
+
+You: I watched a beautiful sunset today and felt grateful 
+     for this peaceful moment.
+
+Bot: 🇪🇸 Perfect! Now try writing that same moment in Spanish.
+     Your English moment: "I watched a beautiful sunset..."
+     Now write it in Spanish:
+
+You: Vi una puesta de sol hermosa hoy y me sentí agradecido 
+     por este momento pacífico.
+
+Bot: 🎉 Excellent work! You've completed your Spanish moment.
+     [Shows both versions and encouragement]
+```
+
+## 📁 Project Structure
+
+```
+moments_bot/
+├── bot.py                 # Main bot application
+├── config/
+│   └── settings.py        # Configuration management
+├── handlers/
+│   ├── conversation.py    # Moment capture conversation flow
+│   └── commands.py        # Basic command handlers
+├── services/
+│   └── storage.py         # Data persistence (JSON)
+├── models/
+│   └── moment.py          # Data models (Moment, UserStats)
+├── utils/
+│   └── helpers.py         # Utility functions
+├── data/                  # User moment files (auto-created)
+├── requirements.txt       # Python dependencies
+├── .env.example          # Environment template
+└── README.md             # This file
+```
+
+## 🛠️ Development
+
+### Phase 1 Implementation ✅
+
+- [x] Modular project structure
+- [x] Conversation state management
+- [x] Moment data models
+- [x] JSON-based storage
+- [x] Basic command handlers
+- [x] Progress tracking
+- [x] Search and export functionality
+
+### Phase 2 Roadmap 🚧
+
+- [ ] AI service integration (OpenAI/Claude)
+- [ ] Intelligent Spanish feedback
+- [ ] Daily reminder scheduling
+- [ ] Vocabulary tracking
+- [ ] Difficulty progression
+
+### Phase 3+ Future Features 💭
+
+- [ ] Voice message support
+- [ ] Photo moments with captions
+- [ ] Social features and sharing
+- [ ] Multiple language support
+- [ ] Advanced analytics
+
+## 🔧 Configuration Options
+
+Environment variables in `.env`:
+
+```bash
+# Required
+BOT_TOKEN=your_telegram_bot_token
+BOT_USERNAME=@your_bot_username
+
+# Optional
+DATA_DIR=data                    # Where to store moment files
+MAX_MOMENTS_PER_DAY=3           # Daily capture limit
+CONVERSATION_TIMEOUT=1800        # 30 minutes
+DEFAULT_REMINDER_TIME=20:00      # 8 PM reminders (Phase 2)
+
+# AI Integration (Phase 2)
+OPENAI_API_KEY=your_key         # For AI feedback
+AI_MODEL=gpt-3.5-turbo          # Model to use
+AI_MAX_TOKENS=500               # Response length limit
+AI_TEMPERATURE=0.7              # Creativity level
+```
+
+## 📊 Data Storage
+
+Moments are stored as JSON files in the `data/` directory:
+- `moments_{user_id}.json` - Contains all moments for each user
+- Includes timestamps, progress tracking, and metadata
+- Easy to backup, export, or migrate
+
+## 🤝 Contributing
+
+This is a personal learning project, but suggestions are welcome!
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+See [LICENSE](LICENSE) file for details.
+
+## 🙏 Inspiration
+
+- **Matthew Dicks** - "Homework for Life" concept of daily moment observation
+- **Language learning communities** - Active recall and spaced repetition principles
+- **Telegram bot ecosystem** - Simple, accessible, and conversational interface
+
+---
+
+**¡Vamos a practicar español!** Start capturing your story-worthy moments today! 🇪🇸✨
 
 5. Edit the `.env` file and add your bot token:
 ```
