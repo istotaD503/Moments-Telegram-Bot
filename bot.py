@@ -43,7 +43,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def hello_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a hello message when the command /hello is issued."""
     user_first_name = update.effective_user.first_name
-    hello_message = f"🌟 Hello there, {user_first_name}! Hope you're having a great day! 🌟"
+    hello_message = f"🌟 Hello there, {user_first_name}! Hope you're having the best day! 🌟"
     await update.message.reply_text(hello_message)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -53,6 +53,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "*Available Commands:*\n"
         "• `/start` - Welcome message and bot introduction\n"
         "• `/hello` - Get a friendly greeting\n"
+        "• `/story` - Share your story-worthy moment\n"
         "• `/help` - Show this help message\n\n"
         "*About this bot:*\n"
         "This is a simple 'Hello World' Telegram bot created for testing purposes. "
@@ -60,6 +61,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "Send me any message and I'll echo it back with a friendly response! 😊"
     )
     await update.message.reply_text(help_message, parse_mode='Markdown')
+
+# --- Start /story command ---
+async def story(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📝 Tell me your most story-worthy moment of the day (in English):")
+    return ENGLISH
 
 # Message handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -106,6 +112,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("hello", hello_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("story", story))
 
     # Add message handler for non-command messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
