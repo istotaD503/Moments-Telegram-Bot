@@ -19,12 +19,25 @@ def setup_webhook():
         print("❌ BOT_TOKEN not found")
         return False
     
-    # Get the Render service URL from environment
-    render_url = os.getenv('RENDER_EXTERNAL_URL')
+    # Try to get the Render service URL from various environment variables
+    render_url = (
+        os.getenv('RENDER_EXTERNAL_URL') or 
+        os.getenv('RENDER_SERVICE_URL') or
+        os.getenv('RENDER_EXTERNAL_HOSTNAME')
+    )
+    
+    # If still not found, try to construct from service name
     if not render_url:
-        print("❌ RENDER_EXTERNAL_URL not found")
-        print("ℹ️  This should be set automatically by Render")
-        print("ℹ️  You can also set it manually: https://your-service-name.onrender.com")
+        service_name = os.getenv('RENDER_SERVICE_NAME', 'spanish-moments-bot')
+        render_url = f"https://{service_name}.onrender.com"
+        print(f"🔧 Constructed URL from service name: {render_url}")
+    
+    # Last resort: ask user to provide it
+    if not render_url or 'None' in render_url:
+        print("❌ Could not determine Render URL automatically")
+        print("ℹ️  Please find your Render service URL in the dashboard")
+        print("ℹ️  It should look like: https://your-service-name.onrender.com")
+        print("ℹ️  You can set it manually or use the browser method below")
         return False
     
     webhook_url = f"{render_url}/webhook"
@@ -91,6 +104,17 @@ def main():
     print("🤖 Telegram Bot Webhook Setup for Render")
     print("=" * 50)
     
+    # Show environment info for debugging
+    print("🔍 Environment Debug Info:")
+    env_vars = [
+        'RENDER_EXTERNAL_URL', 'RENDER_SERVICE_URL', 'RENDER_EXTERNAL_HOSTNAME',
+        'RENDER_SERVICE_NAME', 'RENDER', 'PORT'
+    ]
+    for var in env_vars:
+        value = os.getenv(var, 'Not set')
+        print(f"   {var}: {value}")
+    print()
+    
     # Validate configuration
     if not settings.validate():
         print("❌ Bot configuration is invalid")
@@ -108,7 +132,8 @@ def main():
     else:
         print("\n❌ Webhook setup failed!")
         print("💡 Manual setup: Visit this URL in your browser:")
-        render_url = os.getenv('RENDER_EXTERNAL_URL', 'https://your-service-name.onrender.com')
+        service_name = os.getenv('RENDER_SERVICE_NAME', 'spanish-moments-bot')
+        render_url = f"https://{service_name}.onrender.com"
         print(f"   https://api.telegram.org/bot{settings.BOT_TOKEN}/setWebhook?url={render_url}/webhook")
 
 if __name__ == '__main__':
