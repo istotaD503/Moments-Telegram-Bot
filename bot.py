@@ -76,23 +76,34 @@ def index():
 def webhook():
     """Handle incoming webhook updates."""
     import asyncio
+    import threading
     
-    async def process_update():
-        global telegram_app
-        
-        # Make sure we have an initialized app
-        if not telegram_app:
-            telegram_app = create_telegram_app(webhook_mode=True)
-            await telegram_app.initialize()
-        
-        # Get the update from Telegram
-        update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-        
-        # Process the update
-        await telegram_app.process_update(update)
+    global telegram_app
     
-    # Run the async function
-    asyncio.run(process_update())
+    # Make sure we have an initialized app
+    if not telegram_app:
+        telegram_app = create_telegram_app(webhook_mode=True)
+        # Initialize synchronously in this context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(telegram_app.initialize())
+        loop.close()
+    
+    # Get the update from Telegram
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    
+    # Process the update in a separate thread to avoid event loop conflicts
+    def process_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(telegram_app.process_update(update))
+        finally:
+            loop.close()
+    
+    thread = threading.Thread(target=process_in_thread)
+    thread.start()
+    thread.join()  # Wait for completion
     
     return "OK"
 
@@ -110,29 +121,15 @@ def main() -> None:
     # Check if we're running on Render (production)
     if os.getenv('RENDER'):
         print("🌐 Running in webhook mode (Render)")
-        # Pre-initialize the telegram app for webhook mode
+        # Don't pre-initialize here - let webhook handler do it when needed
         global telegram_app
-        telegram_app = create_telegram_app(webhook_mode=True)
-        
-        # Initialize the app asynchronously in a separate thread
-        import asyncio
-        import threading
-        
-        def init_telegram_app():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(telegram_app.initialize())
-            print("✅ Telegram app initialized for webhook mode")
-        
-        # Start initialization in background
-        init_thread = threading.Thread(target=init_telegram_app)
-        init_thread.daemon = True
-        init_thread.start()
+        telegram_app = None
         
         # Get port from environment
         port = int(os.environ.get('PORT', 10000))
         
         print(f"🚀 Starting Flask webhook server on port {port}")
+        print("✅ Webhook handler will initialize Telegram app on first request")
         # Run Flask app
         flask_app.run(host='0.0.0.0', port=port)
     else:
