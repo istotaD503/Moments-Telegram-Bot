@@ -37,10 +37,10 @@ def create_telegram_app(webhook_mode=False):
     
     # Always create a new app based on the mode
     if webhook_mode:
-        # For webhook mode, don't create an updater
-        telegram_app = Application.builder().token(settings.BOT_TOKEN).updater(None).build()
+        # For webhook mode, don't create an updater or job queue
+        telegram_app = Application.builder().token(settings.BOT_TOKEN).updater(None).job_queue(None).build()
     else:
-        # For polling mode, use default setup with updater
+        # For polling mode, use default setup with updater and job queue
         telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
 
     # Add conversation handler for moment capture (highest priority)
