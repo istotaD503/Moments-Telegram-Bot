@@ -78,7 +78,12 @@ def webhook():
     import asyncio
     
     async def process_update():
-        telegram_app = create_telegram_app(webhook_mode=True)
+        global telegram_app
+        
+        # Make sure we have an initialized app
+        if not telegram_app:
+            telegram_app = create_telegram_app(webhook_mode=True)
+            await telegram_app.initialize()
         
         # Get the update from Telegram
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
@@ -105,12 +110,29 @@ def main() -> None:
     # Check if we're running on Render (production)
     if os.getenv('RENDER'):
         print("🌐 Running in webhook mode (Render)")
-        # Initialize the telegram app for webhook mode
-        create_telegram_app(webhook_mode=True)
+        # Pre-initialize the telegram app for webhook mode
+        global telegram_app
+        telegram_app = create_telegram_app(webhook_mode=True)
+        
+        # Initialize the app asynchronously in a separate thread
+        import asyncio
+        import threading
+        
+        def init_telegram_app():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(telegram_app.initialize())
+            print("✅ Telegram app initialized for webhook mode")
+        
+        # Start initialization in background
+        init_thread = threading.Thread(target=init_telegram_app)
+        init_thread.daemon = True
+        init_thread.start()
         
         # Get port from environment
         port = int(os.environ.get('PORT', 10000))
         
+        print(f"🚀 Starting Flask webhook server on port {port}")
         # Run Flask app
         flask_app.run(host='0.0.0.0', port=port)
     else:
