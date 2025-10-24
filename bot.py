@@ -31,15 +31,17 @@ flask_app = Flask(__name__)
 # Global application instance
 telegram_app = None
 
-def create_telegram_app():
+def create_telegram_app(webhook_mode=False):
     """Create and configure the Telegram application."""
     global telegram_app
     
-    if telegram_app:
-        return telegram_app
-    
-    # Create the Application
-    telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
+    # Always create a new app based on the mode
+    if webhook_mode:
+        # For webhook mode, don't create an updater
+        telegram_app = Application.builder().token(settings.BOT_TOKEN).updater(None).build()
+    else:
+        # For polling mode, use default setup with updater
+        telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
 
     # Add conversation handler for moment capture (highest priority)
     moment_conversation = MomentConversationHandler.get_conversation_handler()
@@ -71,15 +73,21 @@ def index():
     return "Spanish Moments Bot is running! 🤖"
 
 @flask_app.route('/webhook', methods=['POST'])
-async def webhook():
+def webhook():
     """Handle incoming webhook updates."""
-    telegram_app = create_telegram_app()
+    import asyncio
     
-    # Get the update from Telegram
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    async def process_update():
+        telegram_app = create_telegram_app(webhook_mode=True)
+        
+        # Get the update from Telegram
+        update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+        
+        # Process the update
+        await telegram_app.process_update(update)
     
-    # Process the update
-    await telegram_app.process_update(update)
+    # Run the async function
+    asyncio.run(process_update())
     
     return "OK"
 
@@ -97,8 +105,8 @@ def main() -> None:
     # Check if we're running on Render (production)
     if os.getenv('RENDER'):
         print("🌐 Running in webhook mode (Render)")
-        # Initialize the telegram app
-        create_telegram_app()
+        # Initialize the telegram app for webhook mode
+        create_telegram_app(webhook_mode=True)
         
         # Get port from environment
         port = int(os.environ.get('PORT', 10000))
@@ -107,8 +115,8 @@ def main() -> None:
         flask_app.run(host='0.0.0.0', port=port)
     else:
         print("🏠 Running in polling mode (local)")
-        # Create the Application for local development
-        telegram_app = create_telegram_app()
+        # Create the Application for local development with updater
+        telegram_app = create_telegram_app(webhook_mode=False)
         
         print("✅ Bot handlers registered:")
         print("   📝 /moment - Start moment capture conversation")
