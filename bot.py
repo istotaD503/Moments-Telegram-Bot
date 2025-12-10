@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-Spanish Moments Telegram Bot
-A language learning bot that helps users practice Spanish by capturing daily story-worthy moments.
-
-Concept inspired by Matthew Dicks' "Homework for Life" combined with active language practice.
+Telegram Bot Skeleton
+A basic Telegram bot with webhook support for Render deployment.
 """
 
 import logging
@@ -15,8 +13,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 # Import our modular components
 from config.settings import settings
-from handlers.commands import BasicCommandHandlers
-from handlers.conversation import MomentConversationHandler, MomentCommandHandlers
+from handlers.commands import CommandHandlers
 
 # Enable logging
 logging.basicConfig(
@@ -43,34 +40,21 @@ def create_telegram_app(webhook_mode=False):
         # For polling mode, use default setup with updater and job queue
         telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
 
-    # Add conversation handler for moment capture (highest priority)
-    moment_conversation = MomentConversationHandler.get_conversation_handler()
-    telegram_app.add_handler(moment_conversation)
-
     # Add basic command handlers
-    telegram_app.add_handler(CommandHandler("start", BasicCommandHandlers.start_command))
-    telegram_app.add_handler(CommandHandler("help", BasicCommandHandlers.help_command))
-    
-    # Add moment management command handlers
-    telegram_app.add_handler(CommandHandler("recent", MomentCommandHandlers.show_recent_moments))
-    telegram_app.add_handler(CommandHandler("stats", MomentCommandHandlers.show_stats))
-    telegram_app.add_handler(CommandHandler("search", MomentCommandHandlers.search_moments))
-    telegram_app.add_handler(CommandHandler("export", MomentCommandHandlers.export_moments))
+    telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
+    telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
 
     # Add handler for unknown commands
-    telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
-
-    # Add message handler for non-command messages (lowest priority)
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, BasicCommandHandlers.handle_text_message))
+    telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
 
     # Add error handler
-    telegram_app.add_error_handler(BasicCommandHandlers.error_handler)
+    telegram_app.add_error_handler(CommandHandlers.error_handler)
 
     return telegram_app
 
 @flask_app.route('/')
 def index():
-    return "Spanish Moments Bot is running! 🤖"
+    return "Telegram Bot is running! 🤖"
 
 @flask_app.route('/webhook', methods=['POST'])
 def webhook():
@@ -115,8 +99,7 @@ def main() -> None:
         print("Please set BOT_TOKEN environment variable")
         sys.exit(1)
 
-    print(f"🤖 Starting Spanish Moments Bot...")
-    print(f"📁 Data directory: {settings.DATA_DIR}")
+    print(f"🤖 Starting Telegram Bot...")
 
     # Check if we're running on Render (production)
     if os.getenv('RENDER'):
@@ -138,21 +121,15 @@ def main() -> None:
         telegram_app = create_telegram_app(webhook_mode=False)
         
         print("✅ Bot handlers registered:")
-        print("   📝 /moment - Start moment capture conversation")
-        print("   📚 /recent - View recent moments")
-        print("   📊 /stats - Show learning statistics")
-        print("   🔍 /search - Search through moments")
-        print("   📄 /export - Export moments to file")
-        print("   ℹ️  /help - Show help message")
         print("   🏠 /start - Welcome message")
+        print("   ℹ️  /help - Show help message")
         
-        print("🚀 Spanish Moments Bot is running! Press Ctrl+C to stop.")
-        print("💡 Start a conversation with your bot and use /moment to capture your first story-worthy moment!")
+        print("🚀 Telegram Bot is running! Press Ctrl+C to stop.")
         
         try:
             telegram_app.run_polling(poll_interval=1)
         except KeyboardInterrupt:
-            print("\n👋 Spanish Moments Bot stopped. ¡Hasta luego!")
+            print("\n👋 Telegram Bot stopped!")
 
 if __name__ == '__main__':
     main()

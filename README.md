@@ -1,31 +1,14 @@
-# Spanish Moments Bot
+# Telegram Bot Skeleton
 
-A Telegram bot that helps you practice Spanish by capturing and translating your daily story-worthy moments. Inspired by Matthew Dicks' "Homework for Life" concept combined with active language learning.
+A basic Telegram bot skeleton with webhook support for Render deployment. This is a clean starting point for building your own Telegram bot with production-ready deployment setup.
 
-## 🌟 Concept
+## 🌟 Features
 
-This bot helps you:
-1. **Capture daily moments** - Write about story-worthy moments from your day in English
-2. **Practice Spanish translation** - Attempt to translate your moment into Spanish
-3. **Receive feedback** - Get AI-powered corrections and explanations (Phase 2)
-4. **Track progress** - Monitor your learning journey with statistics and streaks
-
-## ✨ Features
-
-### Phase 1 (Current Implementation)
-- 📝 **Moment Capture**: Multi-step conversation flow for capturing moments
-- 🇪🇸 **Spanish Practice**: Attempt Spanish translations of your moments
-- � **Persistent Storage**: All moments saved locally in JSON format
-- � **Progress Tracking**: View statistics and learning progress
-- 🔍 **Search & Review**: Find and review your past moments
-- 📄 **Export**: Download your moments as text files
-
-### Coming Soon (Phase 2+)
-- 🤖 **AI Feedback**: Detailed corrections and explanations
-- ⏰ **Daily Reminders**: Automatic prompts to capture moments
-- 📚 **Vocabulary Building**: Track and review learned words
-- 🎯 **Difficulty Progression**: Adaptive learning based on your level
-- 🎵 **Voice Support**: Practice pronunciation with voice messages
+- 🤖 **Basic Bot Commands**: `/start` and `/help` commands
+- 🌐 **Webhook Support**: Ready for production deployment on Render
+- 🏠 **Polling Mode**: Local development with polling
+- 📦 **Modular Structure**: Clean code organization
+- ⚙️ **Environment Config**: Dotenv configuration support
 
 ## 🚀 Quick Start
 
@@ -71,69 +54,36 @@ python bot.py
 
 ### Basic Commands
 
-- `/start` - Welcome message and overview
-- `/moment` - Start capturing a new moment (main feature!)
-- `/recent` - View your recent moments
-- `/stats` - See your learning progress
-- `/search [term]` - Search through your moments
-- `/export` - Download all your moments
+- `/start` - Welcome message
 - `/help` - Show all available commands
-
-### Capturing Your First Moment
-
-1. Send `/moment` to your bot
-2. Write about a story-worthy moment from your day in English
-3. The bot will ask you to translate it to Spanish
-4. Try your best - don't worry about perfection!
-5. Your moment is saved for future review
-
-### Example Flow
-
-```
-You: /moment
-
-Bot: ✨ Ready to capture a story-worthy moment?
-     Choose a prompt or write about any moment...
-
-You: I watched a beautiful sunset today and felt grateful 
-     for this peaceful moment.
-
-Bot: 🇪🇸 Perfect! Now try writing that same moment in Spanish.
-     Your English moment: "I watched a beautiful sunset..."
-     Now write it in Spanish:
-
-You: Vi una puesta de sol hermosa hoy y me sentí agradecido 
-     por este momento pacífico.
-
-Bot: 🎉 Excellent work! You've completed your Spanish moment.
-     [Shows both versions and encouragement]
-```
 
 ## 📁 Project Structure
 
 ```
-moments_bot/
+telegram-bot/
 ├── bot.py                 # Main bot application
 ├── config/
+│   ├── __init__.py
 │   └── settings.py        # Configuration management
 ├── handlers/
-│   ├── conversation.py    # Moment capture conversation flow
+│   ├── __init__.py
 │   └── commands.py        # Basic command handlers
-├── services/
-│   └── storage.py         # Data persistence (JSON)
 ├── models/
-│   └── moment.py          # Data models (Moment, UserStats)
+│   └── __init__.py
+├── services/
+│   └── __init__.py
 ├── utils/
-│   └── helpers.py         # Utility functions
-├── data/                  # User moment files (auto-created)
+│   └── __init__.py
 ├── requirements.txt       # Python dependencies
+├── render.yaml           # Render deployment config
+├── setup_webhook.py      # Webhook setup script
 ├── .env.example          # Environment template
 └── README.md             # This file
 ```
 
 ## 🛠️ Development
 
-### Phase 1 Implementation ✅
+### Running Locally
 
 - [x] Modular project structure
 - [x] Conversation state management
@@ -168,57 +118,9 @@ Environment variables in `.env`:
 BOT_TOKEN=your_telegram_bot_token
 BOT_USERNAME=@your_bot_username
 
-# Optional
-DATA_DIR=data                    # Where to store moment files
-MAX_MOMENTS_PER_DAY=3           # Daily capture limit
-CONVERSATION_TIMEOUT=1800        # 30 minutes
-DEFAULT_REMINDER_TIME=20:00      # 8 PM reminders (Phase 2)
-
-# AI Integration (Phase 2)
-OPENAI_API_KEY=your_key         # For AI feedback
-AI_MODEL=gpt-3.5-turbo          # Model to use
-AI_MAX_TOKENS=500               # Response length limit
-AI_TEMPERATURE=0.7              # Creativity level
 ```
 
-## 📊 Data Storage
-
-Moments are stored as JSON files in the `data/` directory:
-- `moments_{user_id}.json` - Contains all moments for each user
-- Includes timestamps, progress tracking, and metadata
-- Easy to backup, export, or migrate
-
-## 🤝 Contributing
-
-This is a personal learning project, but suggestions are welcome!
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-See [LICENSE](LICENSE) file for details.
-
-## 🙏 Inspiration
-
-- **Matthew Dicks** - "Homework for Life" concept of daily moment observation
-- **Language learning communities** - Active recall and spaced repetition principles
-- **Telegram bot ecosystem** - Simple, accessible, and conversational interface
-
----
-
-**¡Vamos a practicar español!** Start capturing your story-worthy moments today! 🇪🇸✨
-
-5. Edit the `.env` file and add your bot token:
-```
-BOT_TOKEN=your_actual_bot_token_here
-BOT_USERNAME=@your_bot_username
-```
-
-### 3. Run the Bot
+### Run Locally
 
 ```bash
 python bot.py
@@ -226,39 +128,79 @@ python bot.py
 
 You should see:
 ```
-🤖 Starting Hello World Bot @your_bot_username...
-✅ Bot is running! Press Ctrl+C to stop.
+🤖 Starting Telegram Bot...
+🏠 Running in polling mode (local)
+✅ Bot handlers registered:
+   🏠 /start - Welcome message
+   ℹ️  /help - Show help message
+🚀 Telegram Bot is running! Press Ctrl+C to stop.
 ```
 
-## Testing Your Bot
+## 🌐 Deploying to Render
 
-1. Open Telegram and search for your bot by its username
-2. Start a conversation with your bot
-3. Try these commands:
-   - `/start` - Get a welcome message
-   - `/hello` - Get a friendly greeting
-   - `/help` - See available commands
-   - Send any message - Get an echo response
+This bot is configured for easy deployment to Render.
 
-## Available Commands
+### 1. Push to GitHub
 
-- `/start` - Welcome message and bot introduction
-- `/hello` - Get a friendly greeting
-- `/help` - Show help message
+```bash
+git add .
+git commit -m "Initial bot setup"
+git push origin main
+```
 
-## Project Structure
+### 2. Deploy on Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com/)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Render will auto-detect the `render.yaml` configuration
+5. Add environment variable: `BOT_TOKEN` = your bot token
+6. Click "Create Web Service"
+
+### 3. Set Up Webhook
+
+After deployment, run the webhook setup script:
+
+```bash
+python setup_webhook.py
+```
+
+This will configure your bot to receive updates via webhook instead of polling.
+
+## 🔧 Customization
+
+Add your own commands in `handlers/commands.py`:
+
+```python
+@staticmethod
+async def your_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Your custom command"""
+    await update.message.reply_text("Your response here!")
+```
+
+Then register it in `bot.py`:
+
+```python
+telegram_app.add_handler(CommandHandler("yourcommand", CommandHandlers.your_command))
+```
+
+## 📄 License
+
+See [LICENSE](LICENSE) file for details.
+
+---
+
+Built with ❤️ using python-telegram-bot and Flask
 
 ```
 .
 ├── bot.py              # Main bot script
 ├── requirements.txt    # Python dependencies
 ├── .env.example       # Environment variables template
-├── .env              # Your actual environment variables (don't commit!)
-├── .gitignore        # Git ignore file
-└── README.md         # This file
+└── README.md             # This file
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Bot Token Error
 If you see "❌ Error: BOT_TOKEN not found", make sure:
@@ -271,19 +213,13 @@ If you see "❌ Error: BOT_TOKEN not found", make sure:
 - Check that you're messaging the correct bot username
 - Verify your bot token is valid by testing it with BotFather
 
-## Next Steps
+## 💡 Next Steps
 
-This is a basic "Hello World" bot. You can extend it by:
+This is a basic bot skeleton. You can extend it by:
 - Adding more commands
-- Implementing conversation flows
-- Adding database storage
+- Implementing conversation flows with ConversationHandler
+- Adding database storage (SQLite, PostgreSQL, etc.)
 - Integrating with external APIs
 - Adding inline keyboards and buttons
-
-## Development
-
-To extend this bot for the "Moments" storytelling feature, you could add:
-- Story submission handlers
-- Spanish translation features
-- Progress tracking
-- User databases
+- Implementing user authentication
+- Adding logging and monitoring
