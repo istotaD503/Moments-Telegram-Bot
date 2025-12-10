@@ -15,23 +15,18 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-def create_telegram_app():
-    telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
-
-    telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
-    telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
-    telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
-    telegram_app.add_error_handler(CommandHandlers.error_handler)
-
-    return telegram_app
-
 def main():
     if not settings.validate():
         print("Please set BOT_TOKEN environment variable")
         sys.exit(1)
 
     print("🤖 Starting Bot...")
-    telegram_app = create_telegram_app()
+    telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
+
+    telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
+    telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
+    telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
+    telegram_app.add_error_handler(CommandHandlers.error_handler)
     print("🚀 Bot running. Press Ctrl+C to stop.")
     
     try:
