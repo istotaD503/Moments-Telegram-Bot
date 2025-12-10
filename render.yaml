@@ -1,5 +1,5 @@
 services:
-  - type: web
+  - type: worker
     name: Moments-Telegram-Bot
     env: python
     plan: free
@@ -8,5 +8,3 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false
-      - key: RENDER
-        value: "true"
