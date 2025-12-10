@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: Moments-Telegram-Bot
     env: python
     plan: free
