@@ -1,27 +1,27 @@
 Hello {user_first_name}! 👋
 
-Welcome to the **Moments Bot** — your daily companion for capturing life's most meaningful moments!
+Welcome to the <b>Moments Bot</b> - your daily companion for capturing life's most meaningful moments!
 
-📖 **Inspired by "Storyworthy" by Matthew Dicks**
+📖 <b>Inspired by "Storyworthy" by Matthew Dicks</b>
 
-This bot is based on the transformative exercise called **Homework for Life**, brilliantly described in Matthew Dicks' book "Storyworthy: Engage, Teach, Persuade, and Change Your Life Through the Power of Storytelling."
+This bot is based on the transformative exercise called <b>Homework for Life</b>, brilliantly described in Matthew Dicks' book "Storyworthy: Engage, Teach, Persuade, and Change Your Life Through the Power of Storytelling."
 
-💡 **What is Homework for Life?**
+💡 <b>What is Homework for Life?</b>
 
 As Matthew Dicks explains:
-> "Homework for Life is designed to help you find stories in the every day of your life. It takes about five minutes a day."
+<i>"Homework for Life is designed to help you find stories in the every day of your life. It takes about five minutes a day."</i>
 
 The practice is beautifully simple:
-> "At the end of every day, reflect upon your day and ask yourself one simple question: If I had to tell a story from today — a five-minute story onstage about something that took place over the course of this day — what would it be?"
+<i>"At the end of every day, reflect upon your day and ask yourself one simple question: If I had to tell a story from today - a five-minute story onstage about something that took place over the course of this day - what would it be?"</i>
 
 Why does this matter?
-> "When you start looking for story-worthy moments in your life, you start to see them everywhere... Homework for Life has a way of making every single day more meaningful."
+<i>"When you start looking for story-worthy moments in your life, you start to see them everywhere... Homework for Life has a way of making every single day more meaningful."</i>
 
-🎯 **How This Bot Helps**
+🎯 <b>How This Bot Helps</b>
 
-Each day, I'll remind you to capture your moment — that one story-worthy event that made today memorable. Over time, you'll build a treasure trove of memories and discover the extraordinary in your ordinary days.
+Each day, I'll remind you to capture your moment - that one story-worthy event that made today memorable. Over time, you'll build a treasure trove of memories and discover the extraordinary in your ordinary days.
 
-📚 **Get the Book**
+📚 <b>Get the Book</b>
 
 • Purchase: https://matthewdicks.com/Books/storyworthy/
 • Second-hand: https://www.thriftbooks.com/w/storyworthy-engage-teach-persuade-and-change-your-life-through-the-power-of-storytelling_matthew-dicks/18672598/

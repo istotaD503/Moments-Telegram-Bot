@@ -18,7 +18,7 @@ class CommandHandlers:
         
         welcome_message = load_welcome_message(user_first_name)
         
-        await update.message.reply_text(welcome_message, parse_mode='Markdown')
+        await update.message.reply_text(welcome_message, parse_mode='HTML')
     
     @staticmethod
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
