@@ -8,10 +8,10 @@ import sys
 import os
 import threading
 from flask import Flask
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler
 
 from config.settings import settings
-from handlers.commands import CommandHandlers
+from handlers.commands import CommandHandlers, WAITING_FOR_STORY
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -46,10 +46,23 @@ def run_bot():
     # Add logger as the first handler to catch everything
     telegram_app.add_handler(MessageHandler(filters.ALL, log_update), group=-1)
 
+    # Story command with conversation handler
+    story_conversation = ConversationHandler(
+        entry_points=[CommandHandler("story", CommandHandlers.story_command)],
+        states={
+            WAITING_FOR_STORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)
+            ]
+        },
+        fallbacks=[CommandHandler("cancel", CommandHandlers.cancel_story)]
+    )
+    telegram_app.add_handler(story_conversation)
+
+    # Other commands
     telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.handle_message))
+    # Removed default message handler to avoid conflicts with conversation handlers
     telegram_app.add_error_handler(CommandHandlers.error_handler)
     print("🚀 Bot running. Press Ctrl+C to stop.")
     
