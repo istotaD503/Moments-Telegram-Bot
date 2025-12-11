@@ -1,34 +1,30 @@
 # Moments Bot
 
-A Telegram bot for practicing Spanish through daily moments.
+A Telegram bot for capturing daily storyworthy moments, inspired by Matthew Dicks' Homework for Life.
 
-## Quick Start
+## Setup
 
 ```bash
-# Setup
-cd "Moments Bot"
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
 ```
 
-Edit `.env`:
+Create `.env`:
 ```
 BOT_TOKEN=your_bot_token_from_botfather
-BOT_USERNAME=@your_bot_username
 ```
 
+Run:
 ```bash
-# Run
 python bot.py
 ```
 
 ## Commands
 
-- `/start` - Welcome and create profile
-- `/newmoment` - Record a new moment
-- `/mymoments` - View your moments
+- `/start` - Welcome message
+- `/story` - Record today's moment
+- `/mystories` - View your saved stories
 - `/help` - Show all commands
 
 ## Deploy to Render
@@ -37,10 +33,3 @@ python bot.py
 2. Create Web Service on Render
 3. Add `BOT_TOKEN` environment variable
 4. Deploy
-
-## Roadmap
-
-✅ Moment tracking with context  
-✅ Progress statistics  
-✅ Search and filtering  
-🚧 AI feedback and daily reminders
