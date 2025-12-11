@@ -44,6 +44,21 @@ class CommandHandlers:
         )
     
     @staticmethod
+    async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle regular text messages"""
+        message_text = update.message.text
+        user_first_name = update.effective_user.first_name
+        
+        response = (
+            f"Hi {user_first_name}! 👋\n\n"
+            f"I received your message: \"{message_text}\"\n\n"
+            f"I'm still learning what to do with regular messages. "
+            f"For now, try using /help to see what I can do!"
+        )
+        
+        await update.message.reply_text(response)
+    
+    @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Log the error and send a user-friendly message."""
         logger.warning('Update "%s" caused error "%s"', update, context.error)

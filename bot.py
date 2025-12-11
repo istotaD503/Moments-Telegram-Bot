@@ -49,6 +49,7 @@ def run_bot():
     telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.handle_message))
     telegram_app.add_error_handler(CommandHandlers.error_handler)
     print("🚀 Bot running. Press Ctrl+C to stop.")
     
