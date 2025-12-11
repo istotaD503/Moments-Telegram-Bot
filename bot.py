@@ -39,6 +39,13 @@ def run_bot():
     print("🤖 Starting Bot...")
     telegram_app = Application.builder().token(settings.BOT_TOKEN).build()
 
+    # Log all incoming updates
+    async def log_update(update, context):
+        logging.info(f"Received update: {update.to_dict()}")
+    
+    # Add logger as the first handler to catch everything
+    telegram_app.add_handler(MessageHandler(filters.ALL, log_update), group=-1)
+
     telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
