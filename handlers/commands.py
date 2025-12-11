@@ -4,6 +4,7 @@ Basic command handlers for the Telegram Bot
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
+from utils.assets import load_welcome_message
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,9 @@ class CommandHandlers:
         """Send a message when the command /start is issued."""
         user_first_name = update.effective_user.first_name
         
-        welcome_message = (
-            f"Hello {user_first_name}! 👋 Welcome to this Telegram Bot!\n\n"
-            f"This is a basic bot skeleton ready for customization.\n\n"
-            f"Use /help to see available commands."
-        )
+        welcome_message = load_welcome_message(user_first_name)
         
-        await update.message.reply_text(welcome_message)
+        await update.message.reply_text(welcome_message, parse_mode='Markdown')
     
     @staticmethod
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
