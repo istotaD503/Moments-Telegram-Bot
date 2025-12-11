@@ -35,8 +35,9 @@ class CommandHandlers:
             "**Available Commands:**\n"
             "• `/start` - Welcome message\n"
             "• `/story` - Record today's storyworthy moment\n"
+            "• `/mystories` - View your saved stories\n"
             "• `/help` - Show this help message\n\n"
-            "Start your Homework for Life practice with /story!"
+            "💡 Use /story daily to capture moments worth remembering!"
         )
         await update.message.reply_text(help_message, parse_mode='Markdown')
     
@@ -136,6 +137,36 @@ class CommandHandlers:
             "Come back with /story whenever you're ready! 👋"
         )
         return ConversationHandler.END
+    
+    @staticmethod
+    async def mystories_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show user's saved stories"""
+        user = update.effective_user
+        
+        stories = CommandHandlers.story_db.get_user_stories(user.id, limit=10)
+        
+        if not stories:
+            await update.message.reply_text(
+                "📭 You haven't saved any stories yet!\n\n"
+                "Use /story to capture your first moment."
+            )
+            return
+        
+        total_count = CommandHandlers.story_db.count_user_stories(user.id)
+        
+        message = f"📚 *Your Stories* (showing last {len(stories)} of {total_count}):\n\n"
+        
+        for i, story in enumerate(stories, 1):
+            date = story['created_at'].split(' ')[0]  # Get just the date part
+            story_preview = story['story_text'][:100]
+            if len(story['story_text']) > 100:
+                story_preview += "..."
+            
+            message += f"*{i}. {date}*\n{story_preview}\n\n"
+        
+        message += "\n💡 Use /story to add a new moment!"
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
     
     @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

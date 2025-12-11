@@ -61,6 +61,7 @@ def run_bot():
     # Other commands
     telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
+    telegram_app.add_handler(CommandHandler("mystories", CommandHandlers.mystories_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
     # Removed default message handler to avoid conflicts with conversation handlers
     telegram_app.add_error_handler(CommandHandlers.error_handler)
