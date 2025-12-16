@@ -31,15 +31,15 @@ class CommandHandlers:
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a help message when the command /help is issued."""
         help_message = (
-            "🤖 **Bot Help**\n\n"
-            "**Available Commands:**\n"
-            "• `/start` - Welcome message\n"
-            "• `/story` - Record today's storyworthy moment\n"
-            "• `/mystories` - View your saved stories\n"
-            "• `/help` - Show this help message\n\n"
+            "🤖 <b>Bot Help</b>\n\n"
+            "<b>Available Commands:</b>\n"
+            "• /start - Welcome message\n"
+            "• /story - Record today's storyworthy moment\n"
+            "• /mystories - View your saved stories\n"
+            "• /help - Show this help message\n\n"
             "💡 Use /story daily to capture moments worth remembering!"
         )
-        await update.message.reply_text(help_message, parse_mode='Markdown')
+        await update.message.reply_text(help_message, parse_mode='HTML')
     
     @staticmethod
     async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -148,13 +148,14 @@ class CommandHandlers:
         if not stories:
             await update.message.reply_text(
                 "📭 You haven't saved any stories yet!\n\n"
-                "Use /story to capture your first moment."
+                "Use /story to capture your first moment.",
+                parse_mode='HTML'
             )
             return
         
         total_count = CommandHandlers.story_db.count_user_stories(user.id)
         
-        message = f"📚 *Your Stories* (showing last {len(stories)} of {total_count}):\n\n"
+        message = f"📚 <b>Your Stories</b> (showing last {len(stories)} of {total_count}):\n\n"
         
         for i, story in enumerate(stories, 1):
             date = story['created_at'].split(' ')[0]  # Get just the date part
@@ -162,11 +163,11 @@ class CommandHandlers:
             if len(story['story_text']) > 100:
                 story_preview += "..."
             
-            message += f"*{i}. {date}*\n{story_preview}\n\n"
+            message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
         
         message += "\n💡 Use /story to add a new moment!"
         
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode='HTML')
     
     @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
