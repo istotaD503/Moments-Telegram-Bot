@@ -41,6 +41,18 @@ class StoryDatabase:
                 )
             """)
             
+            # Create reminder preferences table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS reminder_preferences (
+                    user_id INTEGER PRIMARY KEY,
+                    reminder_time TEXT NOT NULL,
+                    timezone TEXT DEFAULT 'UTC',
+                    enabled INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # Create index for faster user queries
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_user_id 
@@ -148,3 +160,97 @@ class StoryDatabase:
             """, (user_id,))
             
             return cursor.fetchone()[0]
+    
+    def set_reminder(self, user_id: int, reminder_time: str, timezone: str = 'UTC') -> None:
+        """
+        Set or update reminder preferences for a user
+        
+        Args:
+            user_id: Telegram user ID
+            reminder_time: Time in HH:MM format (24-hour)
+            timezone: User's timezone (default UTC)
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO reminder_preferences (user_id, reminder_time, timezone, enabled)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    reminder_time = excluded.reminder_time,
+                    timezone = excluded.timezone,
+                    enabled = 1,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (user_id, reminder_time, timezone))
+            
+            conn.commit()
+            logger.info(f"Reminder set for user {user_id} at {reminder_time} {timezone}")
+    
+    def disable_reminder(self, user_id: int) -> bool:
+        """
+        Disable reminder for a user
+        
+        Args:
+            user_id: Telegram user ID
+            
+        Returns:
+            True if reminder was disabled, False if no reminder existed
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE reminder_preferences
+                SET enabled = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ? AND enabled = 1
+            """, (user_id,))
+            
+            conn.commit()
+            rows_affected = cursor.rowcount
+            
+            if rows_affected > 0:
+                logger.info(f"Reminder disabled for user {user_id}")
+                return True
+            return False
+    
+    def get_reminder_preference(self, user_id: int):
+        """
+        Get reminder preference for a specific user
+        
+        Args:
+            user_id: Telegram user ID
+            
+        Returns:
+            Dictionary with reminder settings or None
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT user_id, reminder_time, timezone, enabled, created_at, updated_at
+                FROM reminder_preferences
+                WHERE user_id = ?
+            """, (user_id,))
+            
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    
+    def get_all_active_reminders(self):
+        """
+        Get all active reminder preferences
+        
+        Returns:
+            List of dictionaries with reminder settings
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT user_id, reminder_time, timezone, enabled
+                FROM reminder_preferences
+                WHERE enabled = 1
+                ORDER BY reminder_time
+            """)
+            
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
