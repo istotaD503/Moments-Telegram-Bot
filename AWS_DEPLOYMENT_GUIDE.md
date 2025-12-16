@@ -355,15 +355,63 @@ from telegram.ext import Application
 
 logger = logging.getLogger(__name__)
 
+# Global application instance (reused across Lambda invocations)
+# This takes advantage of Lambda's execution context reuse ("warm starts")
+application = None
+
+async def get_application():
+    """
+    Get or create the Telegram application instance.
+    
+    Lambda Container Lifecycle:
+    - Lambda reuses containers between invocations ("warm starts")
+    - Global variables persist in memory between invocations in the same container
+    - When Lambda scales up, new containers start with application = None
+    - When a container is recycled (~15 min idle), a new one starts fresh
+    
+    Performance impact:
+    - Creating Application() + initialize() takes ~500-1000ms
+    - Reusing saves this overhead on every subsequent request
+    - Trade-off: slightly more complex code for significant performance gain
+    
+    Thread safety:
+    - Lambda invocations are single-threaded within a container
+    - No concurrent requests in the same container = no race conditions
+    - Each container has its own isolated application instance
+    """
+    global application
+    
+    if application is None:
+        from bot import create_application
+        application = create_application()
+        await application.initialize()
+        logger.info("✅ Created new application instance (cold start)")
+    else:
+        logger.info("♻️ Reusing existing application instance (warm start)")
+    
+    return application
+
 async def lambda_handler(event, context):
     """
     AWS Lambda entry point for Telegram webhook.
     
-    How it works:
+    Execution flow:
     1. API Gateway receives POST from Telegram
-    2. Lambda runs this function with the update data
-    3. We process the update using python-telegram-bot
-    4. Return 200 OK to Telegram
+    2. Lambda invokes this function (may reuse existing container)
+    3. get_application() returns cached or new instance
+    4. Process the update
+    5. Return 200 OK to Telegram
+    6. Lambda keeps container warm for ~15 minutes
+    
+    Performance characteristics:
+    - Cold start (first request in new container): ~2-3 seconds
+    - Warm start (subsequent requests): ~200-500ms
+    - Memory persists between requests in same container
+    
+    Considerations:
+    - Application state (like HTTP connections) is preserved between requests
+    - This is intentional and beneficial for connection pooling
+    - If you need fresh state per request, don't use this pattern
     
     Args:
         event: API Gateway HTTP API event (contains Telegram update JSON)
@@ -377,19 +425,12 @@ async def lambda_handler(event, context):
         body = json.loads(event.get('body', '{}'))
         logger.info(f"Received update: {body}")
         
-        # Get the application instance (defined in bot.py)
-        from bot import create_application
-        application = await create_application()
-        
-        # Initialize the application (required for webhook mode)
-        await application.initialize()
+        # Get the application instance (creates on first call, reuses after)
+        app = await get_application()
         
         # Process the update
-        update = Update.de_json(body, application.bot)
-        await application.process_update(update)
-        
-        # Shutdown gracefully
-        await application.shutdown()
+        update = Update.de_json(body, app.bot)
+        await app.process_update(update)
         
         return {
             'statusCode': 200,
@@ -402,6 +443,74 @@ async def lambda_handler(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
+```
+
+**Architectural Analysis:**
+
+**✅ Why this IS best practice:**
+1. **AWS Lambda documentation recommends it**: "Take advantage of execution environment reuse to improve performance"
+2. **Cost optimization**: Faster execution = lower Lambda costs (charged per 100ms)
+3. **Connection pooling**: HTTP clients, DB connections benefit from reuse
+4. **Official pattern**: Used in AWS Lambda Powertools, AWS SDKs, etc.
+
+**⚠️ When to be cautious:**
+1. **Stateful objects**: Don't cache user-specific data (we're not - Application is stateless per-request)
+2. **Memory leaks**: Long-running containers could accumulate memory (monitor with CloudWatch)
+3. **Stale connections**: If Telegram changes tokens, restart Lambda (force new containers)
+4. **Cold starts still happen**: When scaling up or after ~15min idle
+
+**Alternative approaches:**
+
+**Option 1: Create on every request (simpler but slower)**
+```python
+async def lambda_handler(event, context):
+    # Recreate everything each time
+    from bot import create_application
+    app = create_application()
+    await app.initialize()
+    
+    # ... process update ...
+    
+    await app.shutdown()  # Clean shutdown
+    return response
+```
+- **Pros**: No global state, easier to reason about
+- **Cons**: ~500ms slower per request, higher costs
+- **Use when**: Simplicity > performance, very low traffic
+
+**Option 2: Lazy initialization with singleton pattern (production-grade)**
+```python
+class ApplicationManager:
+    _instance = None
+    _app = None
+    
+    @classmethod
+    async def get_application(cls):
+        if cls._app is None:
+            from bot import create_application
+            cls._app = create_application()
+            await cls._app.initialize()
+        return cls._app
+
+async def lambda_handler(event, context):
+    app = await ApplicationManager.get_application()
+    # ... use app ...
+```
+- **Pros**: More explicit, testable, thread-safe pattern
+- **Cons**: More code, overkill for Lambda (single-threaded)
+
+**Recommendation**: Use the global variable approach (as shown) because:
+- Lambda guarantees single-threaded execution per container
+- It's the simplest correct implementation
+- AWS documentation explicitly recommends this pattern
+- python-telegram-bot's Application is designed for reuse
+
+**Monitoring warm/cold starts:**
+Add to CloudWatch Insights query:
+```
+fields @timestamp, @message
+| filter @message like /Created new application/
+| stats count() as cold_starts by bin(5m)
 ```
 
 ### Step 7: Refactor bot.py for Dual Mode
