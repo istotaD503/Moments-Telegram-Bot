@@ -717,11 +717,7 @@ class CommandHandlers:
         else:
             info_message += "Your reminder is currently stopped.\n\n"
         
-        info_message += (
-            "💡 Tips:\n"
-            "• Use /setreminder to change the time\n"
-            "• Use /stopreminder to disable reminders"
-        )
+        info_message += "💡 Use /reminders to manage your reminder settings."
         
         await update.message.reply_text(info_message, parse_mode='HTML')
     
