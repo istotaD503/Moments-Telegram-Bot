@@ -192,6 +192,7 @@ class CommandHandlers:
             message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
         
         message += "\n💡 Use /story to add a new moment!"
+        message += "\n📥 Use /export to download all your stories as a file."
         
         await update.message.reply_text(message, parse_mode='HTML')
     
