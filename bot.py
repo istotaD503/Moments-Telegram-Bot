@@ -79,7 +79,10 @@ def main():
     
     # Reminder setup conversation handler
     reminder_conversation = ConversationHandler(
-        entry_points=[CommandHandler("setreminder", CommandHandlers.setreminder_command)],
+        entry_points=[
+            CommandHandler("setreminder", CommandHandlers.setreminder_command),
+            CallbackQueryHandler(CommandHandlers.reminder_menu_callback, pattern="^reminder:")
+        ],
         states={
             WAITING_FOR_TIMEZONE: [
                 CallbackQueryHandler(CommandHandlers.timezone_button_callback, pattern="^tz:"),
@@ -99,8 +102,7 @@ def main():
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
     telegram_app.add_handler(CommandHandler("mystories", CommandHandlers.mystories_command))
     telegram_app.add_handler(CommandHandler("export", CommandHandlers.export_command))
-    telegram_app.add_handler(CommandHandler("stopreminder", CommandHandlers.stopreminder_command))
-    telegram_app.add_handler(CommandHandler("myreminder", CommandHandlers.myreminder_command))
+    telegram_app.add_handler(CommandHandler("reminders", CommandHandlers.reminders_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
     telegram_app.add_error_handler(CommandHandlers.error_handler)
     
@@ -116,11 +118,9 @@ def main():
             BotCommand("help", "Show help message"),
             BotCommand("story", "Record today's moment"),
             BotCommand("mystories", "View your stories"),
+            BotCommand("reminders", "⏰ Manage daily reminders"),
             BotCommand("about", "Learn about Homework for Life"),
             BotCommand("export", "Export all stories"),
-            BotCommand("setreminder", "Set daily reminder"),
-            BotCommand("myreminder", "View reminder status"),
-            BotCommand("stopreminder", "Stop reminders"),
         ]
         await application.bot.set_my_commands(commands)
         logger.info("Bot commands registered with Telegram")

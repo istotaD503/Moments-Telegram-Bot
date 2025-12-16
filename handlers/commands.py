@@ -59,10 +59,8 @@ class CommandHandlers:
             "<b>Capture Your Stories:</b>\n"
             "• /story - Record today's storyworthy moment\n"
             "• /mystories - View your saved stories\n\n"
-            "<b>Reminder Settings:</b>\n"
-            "• /setreminder - Set daily reminder time\n"
-            "• /myreminder - View your reminder status\n"
-            "• /stopreminder - Stop daily reminders\n\n"
+            "<b>Reminders:</b>\n"
+            "• /reminders - ⏰ Manage daily reminders\n\n"
             "<b>Additional:</b>\n"
             "• /export - Export all your stories as a text file\n\n"
             "💡 Use /story daily to capture moments worth remembering!"
@@ -267,6 +265,169 @@ class CommandHandlers:
             await update.effective_message.reply_text(
                 "😅 Oops! Something went wrong. Please try again or use /help if you need assistance."
             )
+    
+    @staticmethod
+    async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show reminder management submenu with inline keyboard."""
+        user = update.effective_user
+        
+        # Check if user has a reminder set
+        reminder_pref = CommandHandlers.story_db.get_reminder_preference(user.id)
+        
+        status_text = ""
+        if reminder_pref and reminder_pref['enabled']:
+            try:
+                timezone_str = reminder_pref.get('timezone', 'UTC')
+                user_tz = pytz.timezone(timezone_str)
+                
+                # Parse UTC time and convert to local
+                utc_time_str = reminder_pref['reminder_time']
+                hour, minute = map(int, utc_time_str.split(':'))
+                utc_now = datetime.now(pytz.UTC)
+                utc_time = utc_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                local_time = utc_time.astimezone(user_tz)
+                local_time_str = local_time.strftime('%H:%M')
+                
+                status_text = f"\n\n✅ <b>Active Reminder:</b> {local_time_str} ({timezone_str})"
+            except:
+                status_text = f"\n\n✅ <b>Active Reminder:</b> {reminder_pref['reminder_time']} UTC"
+        else:
+            status_text = "\n\n🔕 No active reminder set"
+        
+        keyboard = [
+            [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
+            [InlineKeyboardButton("📊 View Reminder Status", callback_data="reminder:view")],
+            [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        message = (
+            "⏰ <b>Reminder Settings</b>\n\n"
+            "Set up daily reminders to capture your storyworthy moments.{status_text}\n\n"
+            "Choose an option below:"
+        ).format(status_text=status_text)
+        
+        await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+    
+    @staticmethod
+    async def reminder_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle reminder submenu button clicks."""
+        query = update.callback_query
+        await query.answer()
+        
+        action = query.data.split(':')[1]
+        user = query.from_user
+        
+        if action == 'set':
+            # Start the setreminder flow
+            reminder_pref = CommandHandlers.story_db.get_reminder_preference(user.id)
+            
+            existing_info = ""
+            if reminder_pref and reminder_pref['enabled']:
+                tz_name = reminder_pref['timezone']
+                local_time = reminder_pref['reminder_time']
+                existing_info = f"\n\nYou currently have a reminder set for <b>{local_time}</b> in <b>{tz_name}</b> timezone."
+            
+            # Create inline keyboard with common timezones
+            keyboard = [
+                [InlineKeyboardButton("🇺🇸 US Eastern", callback_data="tz:America/New_York"),
+                 InlineKeyboardButton("🇺🇸 US Pacific", callback_data="tz:America/Los_Angeles")],
+                [InlineKeyboardButton("🇺🇸 US Central", callback_data="tz:America/Chicago"),
+                 InlineKeyboardButton("🇺🇸 US Mountain", callback_data="tz:America/Denver")],
+                [InlineKeyboardButton("🇬🇧 London", callback_data="tz:Europe/London"),
+                 InlineKeyboardButton("🇫🇷 Paris/Berlin", callback_data="tz:Europe/Paris")],
+                [InlineKeyboardButton("🇯🇵 Tokyo", callback_data="tz:Asia/Tokyo"),
+                 InlineKeyboardButton("🇨🇳 Shanghai", callback_data="tz:Asia/Shanghai")],
+                [InlineKeyboardButton("🇮🇳 India", callback_data="tz:Asia/Kolkata"),
+                 InlineKeyboardButton("🇦🇺 Sydney", callback_data="tz:Australia/Sydney")],
+                [InlineKeyboardButton("🌍 Other (type manually)", callback_data="tz:manual")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            prompt_message = (
+                f"Hey {user.first_name}! ⏰\n\n"
+                f"Let's set up your daily reminder to capture your storyworthy moment.{existing_info}\n\n"
+                f"First, select your timezone:"
+            )
+            
+            await query.edit_message_text(prompt_message, parse_mode='HTML', reply_markup=reply_markup)
+            return WAITING_FOR_TIMEZONE
+            
+        elif action == 'view':
+            # Show reminder status
+            reminder_pref = CommandHandlers.story_db.get_reminder_preference(user.id)
+            
+            if not reminder_pref:
+                await query.edit_message_text(
+                    "🤔 You don't have a reminder set yet.\n\n"
+                    "Use /reminders to set one up!",
+                    parse_mode='HTML'
+                )
+                return ConversationHandler.END
+            
+            status = "✅ Active" if reminder_pref['enabled'] else "🔕 Stopped"
+            
+            # Convert UTC time to user's local timezone
+            try:
+                timezone_str = reminder_pref.get('timezone', 'UTC')
+                user_tz = pytz.timezone(timezone_str)
+                
+                # Parse UTC time
+                utc_time_str = reminder_pref['reminder_time']
+                hour, minute = map(int, utc_time_str.split(':'))
+                
+                # Create UTC datetime and convert to user's timezone
+                utc_now = datetime.now(pytz.UTC)
+                utc_time = utc_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                local_time = utc_time.astimezone(user_tz)
+                local_time_str = local_time.strftime('%H:%M')
+                
+                info_message = (
+                    f"⏰ <b>Reminder Status</b>\n\n"
+                    f"Status: {status}\n"
+                    f"Time: <b>{local_time_str}</b>\n"
+                    f"Timezone: <b>{timezone_str}</b>\n\n"
+                )
+            except Exception as e:
+                logger.error(f"Error converting timezone: {e}")
+                info_message = (
+                    f"⏰ <b>Reminder Status</b>\n\n"
+                    f"Status: {status}\n"
+                    f"Scheduled time: <b>{reminder_pref['reminder_time']} UTC</b>\n\n"
+                )
+            
+            if reminder_pref['enabled']:
+                info_message += "Your daily reminder is active! I'll send you a message at the scheduled time.\n\n"
+            else:
+                info_message += "Your reminder is currently stopped.\n\n"
+            
+            info_message += (
+                "💡 Use /reminders to manage your reminder settings."
+            )
+            
+            await query.edit_message_text(info_message, parse_mode='HTML')
+            return ConversationHandler.END
+            
+        elif action == 'stop':
+            # Stop reminders
+            was_disabled = CommandHandlers.story_db.disable_reminder(user.id)
+            
+            if was_disabled:
+                response = (
+                    "🔕 Your daily reminder has been stopped.\n\n"
+                    "You can always turn it back on with /reminders whenever you're ready!\n\n"
+                    "Keep capturing those moments! ✨"
+                )
+            else:
+                response = (
+                    "🤔 You don't have an active reminder set.\n\n"
+                    "Use /reminders to create one!"
+                )
+            
+            await query.edit_message_text(response, parse_mode='HTML')
+            return ConversationHandler.END
+        
+        return ConversationHandler.END
     
     @staticmethod
     async def setreminder_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
