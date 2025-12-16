@@ -1,16 +1,23 @@
-FROM python:3.12-slim
+# Use official Python runtime
+FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Copy requirements and install dependencies
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY bot.py .
+COPY config/ ./config/
+COPY handlers/ ./handlers/
+COPY models/ ./models/
+COPY utils/ ./utils/
+COPY assets/ ./assets/
 
-# Expose port for health checks
-EXPOSE 10000
+# Create directory for SQLite database (persistent volume will mount here)
+RUN mkdir -p /data
 
 # Run the bot
 CMD ["python", "bot.py"]

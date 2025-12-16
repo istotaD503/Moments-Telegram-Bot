@@ -2,6 +2,7 @@
 Story model for storing user's storyworthy moments
 """
 import sqlite3
+import os
 from datetime import datetime
 from pathlib import Path
 import logging
@@ -13,7 +14,9 @@ class StoryDatabase:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / "data" / "stories.db"
+            # Use /data for Fly.io persistent volume, fall back to local for development
+            db_dir = os.getenv('DB_DIR', 'data')
+            db_path = Path(db_dir) / "stories.db"
         else:
             db_path = Path(db_path)
         

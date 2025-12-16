@@ -1,0 +1,19 @@
+# fly.toml app configuration file
+app = "moments-bot"
+primary_region = "ewr"
+
+[build]
+
+[env]
+  # Set DB_DIR to use persistent volume
+  DB_DIR = "/data"
+
+[mounts]
+  # Persistent volume for SQLite database
+  source = "moments_data"
+  destination = "/data"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
