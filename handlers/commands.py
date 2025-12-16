@@ -20,12 +20,27 @@ class CommandHandlers:
     
     @staticmethod
     async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a message when the command /start is issued."""
+        """Send a minimal welcome message when the command /start is issued."""
         user_first_name = update.effective_user.first_name
         
-        welcome_message = load_welcome_message(user_first_name)
+        welcome_message = (
+            f"Hello {user_first_name}! 👋\n\n"
+            "Welcome to <b>Moments Bot</b> - your daily companion for capturing life's storyworthy moments!\n\n"
+            "📝 Use /story to record today's moment\n"
+            "📖 Use /about to learn more about this practice\n"
+            "❓ Use /help to see all commands"
+        )
         
         await update.message.reply_text(welcome_message, parse_mode='HTML')
+    
+    @staticmethod
+    async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send detailed information about the bot and Homework for Life."""
+        user_first_name = update.effective_user.first_name
+        
+        about_message = load_welcome_message(user_first_name)
+        
+        await update.message.reply_text(about_message, parse_mode='HTML')
     
     @staticmethod
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -34,6 +49,7 @@ class CommandHandlers:
             "🤖 <b>Bot Help</b>\n\n"
             "<b>Available Commands:</b>\n"
             "• /start - Welcome message\n"
+            "• /about - Learn about Homework for Life\n"
             "• /story - Record today's storyworthy moment\n"
             "• /mystories - View your saved stories\n"
             "• /help - Show this help message\n\n"
