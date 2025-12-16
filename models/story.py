@@ -53,6 +53,18 @@ class StoryDatabase:
                 )
             """)
             
+            # Create feedback table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    username TEXT,
+                    first_name TEXT,
+                    feedback_text TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # Create index for faster user queries
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_user_id 
@@ -250,6 +262,52 @@ class StoryDatabase:
                 FROM reminder_preferences
                 WHERE enabled = 1
                 ORDER BY reminder_time
+            """)
+            
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    def save_feedback(self, user_id: int, feedback_text: str,
+                     username: str = None, first_name: str = None) -> int:
+        """
+        Save user feedback to the database
+        
+        Args:
+            user_id: Telegram user ID
+            feedback_text: The feedback content
+            username: Optional Telegram username
+            first_name: Optional user's first name
+            
+        Returns:
+            The ID of the saved feedback
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO feedback (user_id, username, first_name, feedback_text)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, username, first_name, feedback_text))
+            
+            conn.commit()
+            feedback_id = cursor.lastrowid
+            logger.info(f"Feedback {feedback_id} saved from user {user_id}")
+            return feedback_id
+    
+    def get_all_feedback(self):
+        """
+        Get all feedback from all users
+        
+        Returns:
+            List of feedback dictionaries
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, user_id, username, first_name, feedback_text, created_at
+                FROM feedback
+                ORDER BY created_at DESC
             """)
             
             rows = cursor.fetchall()
