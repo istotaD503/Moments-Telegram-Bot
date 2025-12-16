@@ -146,9 +146,51 @@ sudo ./aws/install
 aws --version
 ```
 
-### Step 4: Create Access Keys
+### Step 4: Configure AWS CLI Authentication
 
-You need programmatic access keys for the CLI.
+You have **two options** for authenticating the AWS CLI:
+
+#### Option A: AWS SSO (Recommended - Uses Console Credentials)
+
+This method lets you use your existing AWS Console login without creating access keys.
+
+1. **Configure SSO Profile**:
+   ```bash
+   aws configure sso
+   ```
+
+2. **Answer the prompts**:
+   - **SSO session name**: `my-aws` (or any name you like)
+   - **SSO start URL**: `https://123456789.signin.aws.amazon.com/console` (your IAM sign-in URL from Step 2)
+   - **SSO region**: `us-east-1`
+   - **SSO registration scopes**: `sso:account:access` (press Enter for default)
+
+3. **Browser will open automatically**:
+   - Sign in with your IAM user credentials (`admin-user`)
+   - Click **Allow** to authorize AWS CLI
+
+4. **Continue in terminal**:
+   - **Select the account** (should only show one)
+   - **Select the role**: Choose `AdministratorAccess` or similar
+   - **CLI default region**: `us-east-1`
+   - **CLI default output format**: `json`
+   - **CLI profile name**: `default` (or `admin`)
+
+5. **Login when needed**:
+   ```bash
+   # Login (expires after 8 hours by default)
+   aws sso login
+   
+   # Or if you used a custom profile name:
+   aws sso login --profile admin
+   ```
+
+**Pros**: More secure (no long-lived credentials), easy to use  
+**Cons**: Need to run `aws sso login` when session expires
+
+#### Option B: Access Keys (Traditional Method)
+
+This creates permanent credentials (less secure but doesn't expire).
 
 1. **In AWS Console (as IAM user)**:
    - Search for **IAM** → Click **Users**
@@ -161,23 +203,87 @@ You need programmatic access keys for the CLI.
    - Click **Next** → **Create access key**
    - **IMPORTANT**: Click **Download .csv file** (you can't see the secret key again!)
 
-### Step 5: Configure AWS CLI
+2. **Configure the CLI**:
+   ```bash
+   aws configure
+   
+   # You'll be prompted for 4 values:
+   # AWS Access Key ID: [paste from CSV file]
+   # AWS Secret Access Key: [paste from CSV file]
+   # Default region name: us-east-1
+   # Default output format: json
+   ```
 
-```bash
-# Run the configuration command
-aws configure
+**Pros**: Doesn't expire, simpler for automation  
+**Cons**: Less secure (credentials can be compromised)
 
-# You'll be prompted for 4 values:
-# AWS Access Key ID: [paste from CSV file]
-# AWS Secret Access Key: [paste from CSV file]
-# Default region name: us-east-1
-# Default output format: json
-```
+### Step 5: Verify AWS CLI Access
 
-**Verify it works**:
+**Test your authentication** (works with either option):
 ```bash
 aws sts get-caller-identity
 # Should show your account ID and user ARN
+```
+
+**Expected output**:
+```json
+{
+    "UserId": "AIDAEXAMPLEID",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/admin-user"
+}
+```
+
+**Note for GitHub Actions**: If you chose Option A (SSO), you'll still need to create access keys (Option B) for GitHub Actions to use in Step 24. Your local CLI can use SSO, but GitHub Actions requires access keys.
+
+---
+
+### Troubleshooting Step 5
+
+#### Error: "Could not connect to the endpoint URL"
+
+If you see an error like:
+```
+Could not connect to the endpoint URL: "https://sts.use-east-1.amazonaws.com/"
+```
+
+**Cause**: Typo in region name or incorrect AWS configuration.
+
+**Fix**:
+```bash
+# Check your current configuration
+aws configure list
+
+# Look for the region - it should be "us-east-1" not "use-east-1"
+# If it's wrong, reconfigure:
+aws configure set region us-east-1
+
+# Or if using SSO, check your ~/.aws/config file
+cat ~/.aws/config
+# Look for region = us-east-1 (not use-east-1 or other typos)
+
+# Test again
+aws sts get-caller-identity
+```
+
+**Common typos**:
+- ❌ `use-east-1` → ✅ `us-east-1`
+- ❌ `us-esat-1` → ✅ `us-east-1`
+- ❌ `east-1` → ✅ `us-east-1`
+
+#### Error: "The security token included in the request is invalid"
+
+**For SSO users**: Your session expired.
+```bash
+aws sso login
+# Then try again
+aws sts get-caller-identity
+```
+
+**For Access Key users**: Invalid credentials.
+```bash
+# Reconfigure with correct keys from CSV file
+aws configure
 ```
 
 ---
