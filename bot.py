@@ -14,6 +14,7 @@ from handlers import (
     BasicCommandHandlers,
     StoryCommandHandlers,
     ReminderCommandHandlers,
+    quick_action_router,
     WAITING_FOR_STORY,
     WAITING_FOR_REMINDER_TIME,
     WAITING_FOR_TIMEZONE
@@ -74,26 +75,6 @@ def main():
     telegram_app.add_handler(MessageHandler(filters.ALL, log_update), group=-1)
 
     # Quick action conversation handler (from /start inline buttons)
-    # This needs a router callback to delegate to the right handler
-    async def quick_action_router(update, context):
-        query = update.callback_query
-        action = query.data.split(':')[1]
-        
-        if action in ['about', 'help']:
-            if action == 'about':
-                return await BasicCommandHandlers.about_callback(update, context)
-            else:
-                return await BasicCommandHandlers.help_callback(update, context)
-        elif action in ['story', 'mystories', 'export']:
-            if action == 'story':
-                return await StoryCommandHandlers.story_callback(update, context)
-            elif action == 'mystories':
-                return await StoryCommandHandlers.mystories_callback(update, context)
-            else:
-                return await StoryCommandHandlers.export_callback(update, context)
-        elif action == 'reminder':
-            return await ReminderCommandHandlers.reminder_callback(update, context)
-    
     quick_action_conversation = ConversationHandler(
         entry_points=[CallbackQueryHandler(quick_action_router, pattern="^quick:")],
         states={
