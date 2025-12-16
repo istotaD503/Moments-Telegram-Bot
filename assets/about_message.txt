@@ -1,6 +1,4 @@
-Hello {user_first_name}! 👋
-
-Welcome to the <b>Moments Bot</b> - your daily companion for capturing life's most meaningful moments!
+<b>Welcome to the Moments Bot</b> - your daily companion for capturing life's most meaningful moments!
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -37,7 +35,3 @@ Each day, I'll help you capture your moment - that one story-worthy event that m
 • <a href="https://matthewdicks.com/Books/storyworthy/">Purchase</a>
 • <a href="https://www.thriftbooks.com/w/storyworthy-engage-teach-persuade-and-change-your-life-through-the-power-of-storytelling_matthew-dicks/18672598/">Second-hand</a>
 • <a href="https://nypl.overdrive.com/media/3990836">Borrow for free</a>
-
-━━━━━━━━━━━━━━━━━━━━
-
-Ready to start? Use /story to capture your first moment!

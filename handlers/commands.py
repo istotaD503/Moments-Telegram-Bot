@@ -7,7 +7,7 @@ from datetime import datetime, time as datetime_time
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from utils.assets import load_welcome_message
+from utils.assets import load_about_message
 from models.story import StoryDatabase
 
 logger = logging.getLogger(__name__)
@@ -31,21 +31,33 @@ class CommandHandlers:
         welcome_message = (
             f"Hello {user_first_name}! 👋\n\n"
             "Welcome to <b>Moments Bot</b> - your daily companion for capturing life's storyworthy moments!\n\n"
-            "📝 Use /story to record today's moment\n"
-            "📖 Use /about to learn more about this practice\n"
-            "❓ Use /help to see all commands"
         )
         
-        await update.message.reply_text(welcome_message, parse_mode='HTML')
+        # Add quick action buttons
+        keyboard = [
+            [InlineKeyboardButton("📖 Learn More", callback_data="quick:about")],
+            [InlineKeyboardButton("📝 Record a Story", callback_data="quick:story")],
+            [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="quick:reminder")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(welcome_message, parse_mode='HTML', reply_markup=reply_markup)
     
     @staticmethod
     async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send detailed information about the bot and Homework for Life."""
         user_first_name = update.effective_user.first_name
         
-        about_message = load_welcome_message(user_first_name)
+        about_message = load_about_message(user_first_name)
+
+        # Add quick action buttons
+        keyboard = [
+            [InlineKeyboardButton("📝 Record a Story", callback_data="quick:story")],
+            [InlineKeyboardButton("ℹ️ Help", callback_data="quick:help")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update.message.reply_text(about_message, parse_mode='HTML')
+        await update.message.reply_text(about_message, parse_mode='HTML', reply_markup=reply_markup)
     
     @staticmethod
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -65,7 +77,15 @@ class CommandHandlers:
             "• /export - Export all your stories as a text file\n\n"
             "💡 Use /story daily to capture moments worth remembering!"
         )
-        await update.message.reply_text(help_message, parse_mode='HTML')
+        
+        # Add quick action buttons
+        keyboard = [
+            [InlineKeyboardButton("📝 Try Recording a Story", callback_data="quick:story")],
+            [InlineKeyboardButton("⏰ Set Up Reminders", callback_data="quick:reminder")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(help_message, parse_mode='HTML', reply_markup=reply_markup)
     
     @staticmethod
     async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,7 +128,11 @@ class CommandHandlers:
             "Keep it to 1-2 sentences. What's your moment? 📝"
         )
         
-        await update.message.reply_text(prompt_message, parse_mode='HTML')
+        # Add cancel button
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel:story")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(prompt_message, parse_mode='HTML', reply_markup=reply_markup)
         
         # Set the conversation state
         return WAITING_FOR_STORY
@@ -133,16 +157,30 @@ class CommandHandlers:
             # Get total count for this user
             total_stories = CommandHandlers.story_db.count_user_stories(user.id)
             
+            # Analyze story length and provide feedback
+            word_count = len(story_text.split())
+            length_tip = ""
+            if word_count < 5:
+                length_tip = "\n\n💡 <i>Tip: Try adding a bit more detail next time!</i>"
+            elif word_count > 100:
+                length_tip = "\n\n💡 <i>Tip: Remember, brevity is key! Aim for 1-2 sentences.</i>"
+            
             # Encouraging response in Matthew Dicks' spirit
             response = (
                 f"✨ Beautiful! Story saved.\n\n"
                 f"That's <b>{total_stories}</b> moment{'s' if total_stories != 1 else ''} captured so far.\n\n"
                 f"<i>\"When you start looking for story-worthy moments in your life, "
-                f"you start to see them everywhere.\"</i>\n\n"
+                f"you start to see them everywhere.\"</i>{length_tip}\n\n"
                 f"See you tomorrow! 🌟"
             )
             
-            await update.message.reply_text(response, parse_mode='HTML')
+            # Add quick action button
+            keyboard = [
+                [InlineKeyboardButton("📚 View My Stories", callback_data="quick:mystories")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_text(response, parse_mode='HTML', reply_markup=reply_markup)
             
             logger.info(f"Story {story_id} saved for user {user.id} ({user.first_name})")
             
@@ -172,10 +210,15 @@ class CommandHandlers:
         stories = CommandHandlers.story_db.get_user_stories(user.id, limit=10)
         
         if not stories:
+            # Add action button for empty state
+            keyboard = [[InlineKeyboardButton("📝 Record Your First Story", callback_data="quick:story")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 "📭 You haven't saved any stories yet!\n\n"
                 "Use /story to capture your first moment.",
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=reply_markup
             )
             return
         
@@ -191,10 +234,16 @@ class CommandHandlers:
             
             message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
         
-        message += "\n💡 Use /story to add a new moment!"
-        message += "\n📥 Use /export to download all your stories as a file."
+        message += "💡 <i>Tip: Use /export to download all your stories as a text file.</i>"
         
-        await update.message.reply_text(message, parse_mode='HTML')
+        # Add quick action buttons
+        keyboard = [
+            [InlineKeyboardButton("📝 Record New Story", callback_data="quick:story")],
+            [InlineKeyboardButton("📥 Export Stories", callback_data="quick:export")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
     
     @staticmethod
     async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -205,10 +254,15 @@ class CommandHandlers:
         stories = CommandHandlers.story_db.get_user_stories(user.id)
         
         if not stories:
+            # Add action button for empty state
+            keyboard = [[InlineKeyboardButton("📝 Record Your First Story", callback_data="quick:story")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 "📭 You don't have any stories to export yet!\n\n"
                 "Use /story to capture your first moment.",
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=reply_markup
             )
             return
         
@@ -458,7 +512,8 @@ class CommandHandlers:
              InlineKeyboardButton("🇨🇳 Shanghai", callback_data="tz:Asia/Shanghai")],
             [InlineKeyboardButton("🇮🇳 India", callback_data="tz:Asia/Kolkata"),
              InlineKeyboardButton("🇦🇺 Sydney", callback_data="tz:Australia/Sydney")],
-            [InlineKeyboardButton("🌍 Other (type manually)", callback_data="tz:manual")]
+            [InlineKeyboardButton("🌍 Other (type manually)", callback_data="tz:manual")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel:reminder")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -621,10 +676,7 @@ class CommandHandlers:
             response = (
                 f"✅ Perfect! Your daily reminder is set for <b>{time_text}</b> ({timezone_str}).\n\n"
                 f"I'll send you a friendly nudge every day at this time to capture your moment.\n\n"
-                f"💡 Tips:\n"
-                f"• Use /myreminder to check your reminder status\n"
-                f"• Use /stopreminder to turn off reminders\n"
-                f"• Use /setreminder again to change the time\n\n"
+                f"💡 Use /reminders to manage your reminder settings anytime.\n\n"
                 f"Happy storytelling! 🌟"
             )
             
@@ -757,3 +809,216 @@ class CommandHandlers:
             logger.info(f"Reminder sent to user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send reminder to user {user_id}: {e}")
+    
+    @staticmethod
+    async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle cancel button clicks from inline keyboards."""
+        query = update.callback_query
+        await query.answer()
+        
+        action = query.data.split(':')[1]
+        
+        if action == 'story':
+            await query.edit_message_text(
+                "No worries! Your story wasn't saved. "
+                "Come back with /story whenever you're ready! 👋"
+            )
+        elif action == 'reminder':
+            await query.edit_message_text(
+                "No problem! Your reminder wasn't changed.\n\n"
+                "Use /reminders whenever you want to set it up! 👋"
+            )
+        
+        return ConversationHandler.END
+    
+    @staticmethod
+    async def quick_action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle quick action button clicks from inline keyboards."""
+        query = update.callback_query
+        await query.answer()
+        
+        action = query.data.split(':')[1]
+        user = query.from_user
+        
+        if action == 'story':
+            # Start story conversation
+            user_first_name = user.first_name
+            
+            prompt_message = (
+                f"Hey {user_first_name}! 👋\n\n"
+                "Here's your homework for today:\n\n"
+                "<i>If you had to tell a story from today — a five-minute story onstage "
+                "about something that took place over the course of this day — what would it be?</i>\n\n"
+                "It doesn't need to be spectacular. It doesn't need to be life-changing. "
+                "It just needs to be a moment that mattered to you.\n\n"
+                "Keep it to 1-2 sentences. What's your moment? 📝"
+            )
+            
+            await query.edit_message_text(prompt_message, parse_mode='HTML')
+            return WAITING_FOR_STORY
+            
+        elif action == 'about':
+            # Show about message
+            about_message = load_about_message(user.first_name)
+            
+            # Add quick action buttons
+            keyboard = [
+                [InlineKeyboardButton("📝 Record a Story", callback_data="quick:story")],
+                [InlineKeyboardButton("ℹ️ Help", callback_data="quick:help")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(about_message, parse_mode='HTML', reply_markup=reply_markup)
+            return ConversationHandler.END
+        
+        elif action == 'help':
+            # Show help message
+            help_message = (
+                "🤖 <b>Bot Help</b>\n\n"
+                "<b>Getting Started:</b>\n"
+                "• /start - Welcome message\n"
+                "• /help - Show this help message\n"
+                "• /about - Learn about Homework for Life\n\n"
+                "<b>Capture Your Stories:</b>\n"
+                "• /story - Record today's storyworthy moment\n"
+                "• /mystories - View your saved stories\n\n"
+                "<b>Reminders:</b>\n"
+                "• /reminders - ⏰ Manage daily reminders\n\n"
+                "<b>Additional:</b>\n"
+                "• /export - Export all your stories as a text file\n\n"
+                "💡 Use /story daily to capture moments worth remembering!"
+            )
+            await query.edit_message_text(help_message, parse_mode='HTML')
+            return ConversationHandler.END
+        
+        elif action == 'mystories':
+            # Show user's stories
+            stories = CommandHandlers.story_db.get_user_stories(user.id, limit=10)
+            
+            if not stories:
+                await query.edit_message_text(
+                    "📭 You haven't saved any stories yet!\n\n"
+                    "Use /story to capture your first moment.",
+                    parse_mode='HTML'
+                )
+                return ConversationHandler.END
+            
+            total_count = CommandHandlers.story_db.count_user_stories(user.id)
+            
+            message = f"📚 <b>Your Stories</b> (showing last {len(stories)} of {total_count}):\n\n"
+            
+            for i, story in enumerate(stories, 1):
+                date = story['created_at'].split(' ')[0]
+                story_preview = story['story_text'][:100]
+                if len(story['story_text']) > 100:
+                    story_preview += "..."
+                
+                message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
+            
+            message += "\n💡 Use /story to add a new moment!"
+            message += "\n📥 Use /export to download all your stories as a file."
+            
+            await query.edit_message_text(message, parse_mode='HTML')
+            return ConversationHandler.END
+        
+        elif action == 'export':
+            # Export user stories
+            stories = CommandHandlers.story_db.get_user_stories(user.id)
+            
+            if not stories:
+                await query.edit_message_text(
+                    "📭 You don't have any stories to export yet!\n\n"
+                    "Use /story to capture your first moment.",
+                    parse_mode='HTML'
+                )
+                return ConversationHandler.END
+            
+            # Generate the text file content
+            from datetime import datetime
+            import tempfile
+            import os
+            
+            export_date = datetime.now().strftime('%Y-%m-%d')
+            
+            content = f"My Storyworthy Moments\n"
+            content += f"Exported on {export_date}\n"
+            content += f"Total moments: {len(stories)}\n"
+            content += "=" * 50 + "\n\n"
+            
+            for i, story in enumerate(reversed(stories), 1):
+                date = story['created_at'].split(' ')[0]
+                content += f"{i}. {date}\n"
+                content += f"{story['story_text']}\n"
+                content += "-" * 50 + "\n\n"
+            
+            content += "\n" + "=" * 50 + "\n"
+            content += '"When you start looking for story-worthy moments in your life, '
+            content += 'you start to see them everywhere." - Matthew Dicks\n'
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            
+            try:
+                filename = f"moments_{user.first_name}_{export_date}.txt"
+                
+                with open(temp_path, 'rb') as f:
+                    await query.message.reply_document(
+                        document=f,
+                        filename=filename,
+                        caption=f"📚 Here are your <b>{len(stories)}</b> storyworthy moments!\n\nKeep capturing life's meaningful moments. ✨",
+                        parse_mode='HTML'
+                    )
+                
+                # Edit original message to confirm
+                await query.edit_message_text(
+                    f"✅ Exported {len(stories)} stories!\n\nCheck the file above. 📥"
+                )
+                
+                logger.info(f"Exported {len(stories)} stories for user {user.id} ({user.first_name}) via callback")
+                
+            finally:
+                os.unlink(temp_path)
+            
+            return ConversationHandler.END
+            
+        elif action == 'reminder':
+            # Start reminder setup - show reminders menu
+            reminder_pref = CommandHandlers.story_db.get_reminder_preference(user.id)
+            
+            status_text = ""
+            if reminder_pref and reminder_pref['enabled']:
+                try:
+                    timezone_str = reminder_pref.get('timezone', 'UTC')
+                    user_tz = pytz.timezone(timezone_str)
+                    
+                    utc_time_str = reminder_pref['reminder_time']
+                    hour, minute = map(int, utc_time_str.split(':'))
+                    utc_now = datetime.now(pytz.UTC)
+                    utc_time = utc_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    local_time = utc_time.astimezone(user_tz)
+                    local_time_str = local_time.strftime('%H:%M')
+                    
+                    status_text = f"\n\n✅ <b>Active Reminder:</b> {local_time_str} ({timezone_str})"
+                except:
+                    status_text = f"\n\n✅ <b>Active Reminder:</b> {reminder_pref['reminder_time']} UTC"
+            else:
+                status_text = "\n\n🔕 No active reminder set"
+            
+            keyboard = [
+                [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
+                [InlineKeyboardButton("📊 View Reminder Status", callback_data="reminder:view")],
+                [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            message = (
+                "⏰ <b>Reminder Settings</b>\n\n"
+                "Set up daily reminders to capture your storyworthy moments.{status_text}\n\n"
+                "Choose an option below:"
+            ).format(status_text=status_text)
+            
+            await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+            return ConversationHandler.END
+        
+        return ConversationHandler.END

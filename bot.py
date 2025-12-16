@@ -25,12 +25,13 @@ async def check_and_send_reminders(context):
     Checks every minute and sends reminders to users whose time has come.
     """
     from models.story import StoryDatabase
+    import pytz
     
     db = StoryDatabase()
     active_reminders = db.get_all_active_reminders()
     
-    # Get current time in UTC
-    now = datetime.utcnow()
+    # Get current time in UTC (timezone-aware)
+    now = datetime.now(pytz.UTC)
     current_time_str = now.strftime('%H:%M')
     
     logger.info(f"Checking reminders at {current_time_str} UTC. Found {len(active_reminders)} active reminders.")
@@ -65,6 +66,21 @@ def main():
     # Add logger as the first handler to catch everything
     telegram_app.add_handler(MessageHandler(filters.ALL, log_update), group=-1)
 
+    # Quick action conversation handler (from /start inline buttons)
+    quick_action_conversation = ConversationHandler(
+        entry_points=[CallbackQueryHandler(CommandHandlers.quick_action_callback, pattern="^quick:")],
+        states={
+            WAITING_FOR_STORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)
+            ]
+        },
+        fallbacks=[
+            CommandHandler("cancel", CommandHandlers.cancel_story),
+            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+        ]
+    )
+    telegram_app.add_handler(quick_action_conversation)
+
     # Story command with conversation handler
     story_conversation = ConversationHandler(
         entry_points=[CommandHandler("story", CommandHandlers.story_command)],
@@ -73,7 +89,10 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)
             ]
         },
-        fallbacks=[CommandHandler("cancel", CommandHandlers.cancel_story)]
+        fallbacks=[
+            CommandHandler("cancel", CommandHandlers.cancel_story),
+            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+        ]
     )
     telegram_app.add_handler(story_conversation)
     
@@ -92,7 +111,10 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_reminder_time)
             ]
         },
-        fallbacks=[CommandHandler("cancel", CommandHandlers.cancel_reminder)]
+        fallbacks=[
+            CommandHandler("cancel", CommandHandlers.cancel_reminder),
+            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+        ]
     )
     telegram_app.add_handler(reminder_conversation)
 
@@ -114,13 +136,13 @@ def main():
     async def post_init(application: Application) -> None:
         """Set bot commands after initialization."""
         commands = [
-            BotCommand("start", "Welcome message"),
-            BotCommand("help", "Show help message"),
-            BotCommand("story", "Record today's moment"),
-            BotCommand("mystories", "View your stories"),
+            BotCommand("start", "👋 Welcome message"),
+            BotCommand("help", "❓ Show help message"),
+            BotCommand("story", "📝 Record today's moment"),
+            BotCommand("mystories", "📚 View your stories"),
             BotCommand("reminders", "⏰ Manage daily reminders"),
-            BotCommand("about", "Learn about Homework for Life"),
-            BotCommand("export", "Export all stories"),
+            BotCommand("about", "📖 Learn about Homework for Life"),
+            BotCommand("export", "📥 Export all stories"),
         ]
         await application.bot.set_my_commands(commands)
         logger.info("Bot commands registered with Telegram")

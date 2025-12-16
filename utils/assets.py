@@ -9,17 +9,17 @@ def get_asset_path(filename: str) -> Path:
     current_dir = Path(__file__).parent.parent
     return current_dir / "assets" / filename
 
-def load_welcome_message(user_first_name: str = "") -> str:
+def load_about_message(user_first_name: str = "") -> str:
     """
-    Load the welcome message from assets and format it with user data
+    Load the about message from assets and format it with user data
     
     Args:
         user_first_name: The user's first name to personalize the message
     
     Returns:
-        Formatted welcome message string
+        Formatted about message string
     """
-    asset_path = get_asset_path("welcome_message.txt")
+    asset_path = get_asset_path("about_message.txt")
     
     try:
         with open(asset_path, 'r', encoding='utf-8') as f:
@@ -40,5 +40,5 @@ def load_welcome_message(user_first_name: str = "") -> str:
     except Exception as e:
         # Log error and return fallback
         import logging
-        logging.error(f"Error loading welcome message: {e}")
+        logging.error(f"Error loading about message: {e}")
         return f"Hello {user_first_name}! 👋 Welcome to the Moments Bot!"
