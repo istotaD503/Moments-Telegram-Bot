@@ -52,6 +52,7 @@ class CommandHandlers:
             "• /about - Learn about Homework for Life\n"
             "• /story - Record today's storyworthy moment\n"
             "• /mystories - View your saved stories\n"
+            "• /export - Export all your stories as a text file\n"
             "• /help - Show this help message\n\n"
             "💡 Use /story daily to capture moments worth remembering!"
         )
@@ -184,6 +185,67 @@ class CommandHandlers:
         message += "\n💡 Use /story to add a new moment!"
         
         await update.message.reply_text(message, parse_mode='HTML')
+    
+    @staticmethod
+    async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Export all user stories to a text file"""
+        user = update.effective_user
+        
+        # Get all stories for the user
+        stories = CommandHandlers.story_db.get_user_stories(user.id)
+        
+        if not stories:
+            await update.message.reply_text(
+                "📭 You don't have any stories to export yet!\n\n"
+                "Use /story to capture your first moment.",
+                parse_mode='HTML'
+            )
+            return
+        
+        # Generate the text file content
+        from datetime import datetime
+        export_date = datetime.now().strftime('%Y-%m-%d')
+        
+        content = f"My Storyworthy Moments\n"
+        content += f"Exported on {export_date}\n"
+        content += f"Total moments: {len(stories)}\n"
+        content += "=" * 50 + "\n\n"
+        
+        for i, story in enumerate(reversed(stories), 1):  # Oldest to newest
+            date = story['created_at'].split(' ')[0]
+            content += f"{i}. {date}\n"
+            content += f"{story['story_text']}\n"
+            content += "-" * 50 + "\n\n"
+        
+        content += "\n" + "=" * 50 + "\n"
+        content += '"When you start looking for story-worthy moments in your life, '
+        content += 'you start to see them everywhere." - Matthew Dicks\n'
+        
+        # Create a temporary file
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            f.write(content)
+            temp_path = f.name
+        
+        try:
+            # Send the file
+            filename = f"moments_{user.first_name}_{export_date}.txt"
+            
+            with open(temp_path, 'rb') as f:
+                await update.message.reply_document(
+                    document=f,
+                    filename=filename,
+                    caption=f"📚 Here are your <b>{len(stories)}</b> storyworthy moments!\n\nKeep capturing life's meaningful moments. ✨",
+                    parse_mode='HTML'
+                )
+            
+            logger.info(f"Exported {len(stories)} stories for user {user.id} ({user.first_name})")
+            
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_path)
     
     @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

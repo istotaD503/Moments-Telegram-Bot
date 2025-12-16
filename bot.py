@@ -48,6 +48,7 @@ def main():
     telegram_app.add_handler(CommandHandler("about", CommandHandlers.about_command))
     telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
     telegram_app.add_handler(CommandHandler("mystories", CommandHandlers.mystories_command))
+    telegram_app.add_handler(CommandHandler("export", CommandHandlers.export_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
     telegram_app.add_error_handler(CommandHandlers.error_handler)
     
