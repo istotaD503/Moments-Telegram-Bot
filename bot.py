@@ -10,7 +10,14 @@ from telegram import BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 
 from config.settings import settings
-from handlers.commands import CommandHandlers, WAITING_FOR_STORY, WAITING_FOR_REMINDER_TIME, WAITING_FOR_TIMEZONE
+from handlers import (
+    BasicCommandHandlers,
+    StoryCommandHandlers,
+    ReminderCommandHandlers,
+    WAITING_FOR_STORY,
+    WAITING_FOR_REMINDER_TIME,
+    WAITING_FOR_TIMEZONE
+)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -48,7 +55,7 @@ async def check_and_send_reminders(context):
             stories = db.get_user_stories(user_id, limit=1)
             first_name = stories[0]['first_name'] if stories and stories[0]['first_name'] else None
             
-            await CommandHandlers.send_reminder_to_user(context, user_id, first_name)
+            await ReminderCommandHandlers.send_reminder_to_user(context, user_id, first_name)
 
 def main():
     """Main function to run the Telegram bot"""
@@ -67,31 +74,51 @@ def main():
     telegram_app.add_handler(MessageHandler(filters.ALL, log_update), group=-1)
 
     # Quick action conversation handler (from /start inline buttons)
+    # This needs a router callback to delegate to the right handler
+    async def quick_action_router(update, context):
+        query = update.callback_query
+        action = query.data.split(':')[1]
+        
+        if action in ['about', 'help']:
+            if action == 'about':
+                return await BasicCommandHandlers.about_callback(update, context)
+            else:
+                return await BasicCommandHandlers.help_callback(update, context)
+        elif action in ['story', 'mystories', 'export']:
+            if action == 'story':
+                return await StoryCommandHandlers.story_callback(update, context)
+            elif action == 'mystories':
+                return await StoryCommandHandlers.mystories_callback(update, context)
+            else:
+                return await StoryCommandHandlers.export_callback(update, context)
+        elif action == 'reminder':
+            return await ReminderCommandHandlers.reminder_callback(update, context)
+    
     quick_action_conversation = ConversationHandler(
-        entry_points=[CallbackQueryHandler(CommandHandlers.quick_action_callback, pattern="^quick:")],
+        entry_points=[CallbackQueryHandler(quick_action_router, pattern="^quick:")],
         states={
             WAITING_FOR_STORY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, StoryCommandHandlers.receive_story)
             ]
         },
         fallbacks=[
-            CommandHandler("cancel", CommandHandlers.cancel_story),
-            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+            CommandHandler("cancel", StoryCommandHandlers.cancel_story),
+            CallbackQueryHandler(StoryCommandHandlers.cancel_story_callback, pattern="^cancel:story")
         ]
     )
     telegram_app.add_handler(quick_action_conversation)
 
     # Story command with conversation handler
     story_conversation = ConversationHandler(
-        entry_points=[CommandHandler("story", CommandHandlers.story_command)],
+        entry_points=[CommandHandler("story", StoryCommandHandlers.story_command)],
         states={
             WAITING_FOR_STORY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, StoryCommandHandlers.receive_story)
             ]
         },
         fallbacks=[
-            CommandHandler("cancel", CommandHandlers.cancel_story),
-            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+            CommandHandler("cancel", StoryCommandHandlers.cancel_story),
+            CallbackQueryHandler(StoryCommandHandlers.cancel_story_callback, pattern="^cancel:story")
         ]
     )
     telegram_app.add_handler(story_conversation)
@@ -99,34 +126,34 @@ def main():
     # Reminder setup conversation handler
     reminder_conversation = ConversationHandler(
         entry_points=[
-            CommandHandler("setreminder", CommandHandlers.setreminder_command),
-            CallbackQueryHandler(CommandHandlers.reminder_menu_callback, pattern="^reminder:")
+            CommandHandler("setreminder", ReminderCommandHandlers.setreminder_command),
+            CallbackQueryHandler(ReminderCommandHandlers.reminder_menu_callback, pattern="^reminder:")
         ],
         states={
             WAITING_FOR_TIMEZONE: [
-                CallbackQueryHandler(CommandHandlers.timezone_button_callback, pattern="^tz:"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_timezone)
+                CallbackQueryHandler(ReminderCommandHandlers.timezone_button_callback, pattern="^tz:"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ReminderCommandHandlers.receive_timezone)
             ],
             WAITING_FOR_REMINDER_TIME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_reminder_time)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ReminderCommandHandlers.receive_reminder_time)
             ]
         },
         fallbacks=[
-            CommandHandler("cancel", CommandHandlers.cancel_reminder),
-            CallbackQueryHandler(CommandHandlers.cancel_callback, pattern="^cancel:")
+            CommandHandler("cancel", ReminderCommandHandlers.cancel_reminder),
+            CallbackQueryHandler(ReminderCommandHandlers.cancel_reminder_callback, pattern="^cancel:reminder")
         ]
     )
     telegram_app.add_handler(reminder_conversation)
 
     # Other commands
-    telegram_app.add_handler(CommandHandler("start", CommandHandlers.start_command))
-    telegram_app.add_handler(CommandHandler("about", CommandHandlers.about_command))
-    telegram_app.add_handler(CommandHandler("help", CommandHandlers.help_command))
-    telegram_app.add_handler(CommandHandler("mystories", CommandHandlers.mystories_command))
-    telegram_app.add_handler(CommandHandler("export", CommandHandlers.export_command))
-    telegram_app.add_handler(CommandHandler("reminders", CommandHandlers.reminders_command))
-    telegram_app.add_handler(MessageHandler(filters.COMMAND, CommandHandlers.unknown_command))
-    telegram_app.add_error_handler(CommandHandlers.error_handler)
+    telegram_app.add_handler(CommandHandler("start", BasicCommandHandlers.start_command))
+    telegram_app.add_handler(CommandHandler("about", BasicCommandHandlers.about_command))
+    telegram_app.add_handler(CommandHandler("help", BasicCommandHandlers.help_command))
+    telegram_app.add_handler(CommandHandler("mystories", StoryCommandHandlers.mystories_command))
+    telegram_app.add_handler(CommandHandler("export", StoryCommandHandlers.export_command))
+    telegram_app.add_handler(CommandHandler("reminders", ReminderCommandHandlers.reminders_command))
+    telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
+    telegram_app.add_error_handler(BasicCommandHandlers.error_handler)
     
     # Set up job queue for reminders (check every minute)
     job_queue = telegram_app.job_queue
