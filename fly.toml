@@ -8,6 +8,9 @@ primary_region = "ewr"
   # Set DB_DIR to use persistent volume
   DB_DIR = "/data"
 
+# No HTTP service since this is a Telegram bot (polling mode)
+[[services]]
+
 [mounts]
   # Persistent volume for SQLite database
   source = "moments_data"
