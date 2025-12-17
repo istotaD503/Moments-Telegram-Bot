@@ -1,17 +1,15 @@
-# Use official Python runtime with Alpine for smaller image
-FROM python:3.11-alpine
+# Use ultra-minimal Python Alpine image
+FROM python:3.11-alpine3.19
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies needed for Python packages, then clean up
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev && \
-    apk add --no-cache libffi
-
-# Install dependencies
+# Install dependencies in single layer to minimize image size
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    apk del .build-deps
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apk del .build-deps && \
+    rm -rf /root/.cache /tmp/*
 
 # Copy application code
 COPY bot.py .
@@ -24,5 +22,10 @@ COPY assets/ ./assets/
 # Create directory for SQLite database (persistent volume will mount here)
 RUN mkdir -p /data
 
-# Run the bot
-CMD ["python", "bot.py"]
+# Set Python environment variables for memory optimization
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=1
+
+# Run the bot with optimizations
+CMD ["python", "-OO", "bot.py"]
