@@ -555,14 +555,21 @@ class ReminderCommandHandlers:
             f"<i>If you had to tell a story from today — a five-minute story onstage "
             f"about something that took place over the course of this day — what would it be?</i>\n\n"
             f"Take a moment to reflect on your day. What moment stood out?\n\n"
-            f"Use /story to capture it! 📝"
+            f"Tap the button below to capture it! 👇"
         )
+        
+        # Add quick action button for adding a story
+        keyboard = [
+            [InlineKeyboardButton("📝 Add Story", callback_data="quick:story")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         try:
             await context.bot.send_message(
                 chat_id=user_id,
                 text=reminder_message,
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=reply_markup
             )
             logger.info(f"Reminder sent to user {user_id}")
         except Exception as e:
