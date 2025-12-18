@@ -1,22 +1,29 @@
-# fly.toml app configuration file
-app = "moments-bot"
-primary_region = "ewr"
+# fly.toml app configuration file generated for moments-bot on 2025-12-17T23:06:50-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'moments-bot'
+primary_region = 'ewr'
 
 [build]
 
 [env]
-  # Set DB_DIR to use persistent volume
-  DB_DIR = "/data"
+  DB_DIR = '/data'
 
-# No HTTP service since this is a Telegram bot (polling mode)
-[[services]]
+[[mounts]]
+  source = 'moments_data'
+  destination = '/data'
 
-[mounts]
-  # Persistent volume for SQLite database
-  source = "moments_data"
-  destination = "/data"
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512

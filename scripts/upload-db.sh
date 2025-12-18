@@ -30,7 +30,7 @@ fly ssh console -a $APP_NAME -C "python3 -c \"
 import sqlite3, os
 from pathlib import Path
 
-db_path = Path(os.getenv('DB_DIR', 'data')) / 'stories.db'
+db_path = Path(os.getenv('DB_DIR', '/data')) / 'stories.db'
 
 if db_path.exists():
     conn = sqlite3.connect(str(db_path))
