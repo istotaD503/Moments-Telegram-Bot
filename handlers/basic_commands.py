@@ -134,7 +134,6 @@ class BasicCommandHandlers:
             "• /reminders - ⏰ Manage daily reminders\n\n"
             "<b>Additional:</b>\n"
             "• /export - Export all your stories as a text file\n\n"
-            "💡 Use /story daily to capture moments worth remembering!"
         )
         await query.edit_message_text(help_message, parse_mode='HTML')
         return ConversationHandler.END

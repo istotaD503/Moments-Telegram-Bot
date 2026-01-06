@@ -32,12 +32,9 @@ class StoryCommandHandlers:
         # Matthew Dicks-inspired prompt
         prompt_message = (
             f"Hey {user_first_name}! 👋\n\n"
-            "Here's your homework for today:\n\n"
-            "<i>If you had to tell a story from today — a five-minute story onstage "
-            "about something that took place over the course of this day — what would it be?</i>\n\n"
-            "It doesn't need to be spectacular. It doesn't need to be life-changing. "
-            "It just needs to be a moment that mattered to you.\n\n"
-            "Keep it to 1-2 sentences. What's your moment? 📝"
+            "<i>What moment from today would be worth telling as a story?</i>\n\n"
+            "It doesn't need to be life-changing — just a moment that mattered to you.\n\n"
+            "Keep it brief (1-2 sentences). What's your moment? 📝"
         )
         
         # Add cancel button
@@ -241,15 +238,16 @@ class StoryCommandHandlers:
         
         prompt_message = (
             f"Hey {user_first_name}! 👋\n\n"
-            "Here's your homework for today:\n\n"
-            "<i>If you had to tell a story from today — a five-minute story onstage "
-            "about something that took place over the course of this day — what would it be?</i>\n\n"
-            "It doesn't need to be spectacular. It doesn't need to be life-changing. "
-            "It just needs to be a moment that mattered to you.\n\n"
-            "Keep it to 1-2 sentences. What's your moment? 📝"
+            "<i>What moment from today would be worth telling as a story?</i>\n\n"
+            "It doesn't need to be life-changing — just a moment that mattered to you.\n\n"
+            "Keep it brief (1-2 sentences). What's your moment? 📝"
         )
         
-        await query.edit_message_text(prompt_message, parse_mode='HTML')
+        # Add cancel button
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel:story")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(prompt_message, parse_mode='HTML', reply_markup=reply_markup)
         return WAITING_FOR_STORY
     
     @staticmethod
