@@ -63,3 +63,8 @@ data/
 
 # Backups
 backups/
+
+# Personal/local project notes (never commit)
+notes/
+.notes/
+progress-notes.md

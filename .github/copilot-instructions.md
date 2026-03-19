@@ -1,81 +1,95 @@
 # Copilot Instructions - Moments Bot
 
+## Project Purpose
+
+Moments Bot is a Telegram bot for capturing daily storyworthy moments inspired by Matthew Dicks' Homework for Life practice.
+
 ## Architecture Overview
 
-This is a **Telegram bot for capturing daily "storyworthy moments"**, inspired by Matthew Dicks' "Homework for Life" practice. The bot runs with dual-threaded architecture:
-- **Primary thread**: Telegram polling (`telegram.ext.Application`)
-- **Background thread**: Flask web server for Render.com health checks (port 10000)
+- Runtime entrypoint is `bot.py`, using `python-telegram-bot` polling mode.
+- The bot registers multiple `ConversationHandler` flows plus standard command handlers.
+- Reminder delivery runs via `Application.job_queue` (`run_repeating`) and checks reminders every minute.
+- Persistence is SQLite through `models/story.py` (`StoryDatabase`).
 
-### Key Components
+## Source of Truth Files
 
-- `bot.py`: Main entry point with dual-server setup and ConversationHandler registration
-- `handlers/commands.py`: All command handlers live here as static methods in `CommandHandlers` class
-- `models/story.py`: SQLite database layer (`StoryDatabase`) for story persistence
-- `config/settings.py`: Environment config using singleton `settings` instance
-- `utils/assets.py`: Template loading utilities (e.g., `welcome_message.txt`)
+- `bot.py`: handler wiring, conversation state machines, bot command registration, reminder scheduler.
+- `handlers/basic_commands.py`: `/start`, `/help`, `/about`, unknown command fallback, shared error handler.
+- `handlers/story_commands.py`: `/story`, `/mystories`, `/export`, story conversation flow.
+- `handlers/reminder_commands.py`: reminder setup/manage flow and timezone/time parsing.
+- `handlers/feedback_commands.py`: `/feedback` conversation flow.
+- `handlers/quick_actions.py`: callback router for inline quick actions.
+- `handlers/shared.py`: shared UI helpers/constants used across handlers.
+- `models/story.py`: story/reminder/feedback schema and data access methods.
+- `config/settings.py`: environment config (`BOT_TOKEN`) and validation.
+- `utils/assets.py` and `assets/*.txt`: message templates.
 
-## Critical Patterns
+## Critical Implementation Rules
 
-### 1. ConversationHandler State Machine
-The `/story` command uses telegram's ConversationHandler with state `WAITING_FOR_STORY`:
-```python
-story_conversation = ConversationHandler(
-    entry_points=[CommandHandler("story", CommandHandlers.story_command)],
-    states={WAITING_FOR_STORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, CommandHandlers.receive_story)]},
-    fallbacks=[CommandHandler("cancel", CommandHandlers.cancel_story)]
-)
-```
-**Never** add a default text message handler - it conflicts with conversation states.
+1. Respect conversation state boundaries
+- Keep `ConversationHandler` states explicit.
+- Do not add a catch-all text handler that would intercept conversation input.
 
-### 2. Database Initialization Pattern
-`StoryDatabase` auto-creates `data/stories.db` on first import. All handlers share a **single class-level instance**:
-```python
-class CommandHandlers:
-    story_db = StoryDatabase()  # Singleton pattern
-```
-Don't create new instances - use `CommandHandlers.story_db`.
+2. Keep handler registration order stable
+- `ConversationHandler`s should remain registered before generic command fallbacks.
+- `MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command)` must stay near the end.
 
-### 3. Asset Loading
-Template messages (like welcome) use `{user_first_name}` placeholders loaded via `load_welcome_message()`. See `assets/welcome_message.txt` for the format.
+3. Use async handler style consistently
+- Telegram handlers are async and must `await` Telegram API calls.
 
-## Development Workflow
+4. Reuse the existing database abstraction
+- Put persistence changes in `StoryDatabase` methods rather than inline SQL in handlers.
+- Preserve existing schema compatibility unless explicitly asked to migrate.
 
-**Setup**:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+5. Maintain UX tone
+- Story-related prompts should stay concise, encouraging, and aligned with Homework for Life framing.
 
-**Required Environment**:
-- `BOT_TOKEN`: From @BotFather (required)
-- `PORT`: Web server port (defaults to 10000)
+## Data and Storage Notes
 
-**Run locally**:
-```bash
-python bot.py
-```
-Look for "🚀 Bot running" confirmation. Health endpoint: `http://localhost:10000/health`
+- Default DB path is `data/stories.db` locally.
+- If `DB_DIR` is set (e.g., Fly volume), database file becomes `${DB_DIR}/stories.db`.
+- Current tables: `stories`, `reminder_preferences`, `feedback`.
 
-**Deployment**: Render.com auto-deploys via `render.yaml` + Dockerfile. No manual build needed.
+## Environment and Local Run
 
-## Testing Conventions
+Required env:
+- `BOT_TOKEN` (required)
 
-No test suite exists yet. Manual testing via Telegram client. When adding features:
-1. Test conversation flows end-to-end
-2. Verify database writes in `data/stories.db` 
-3. Check error handler with invalid inputs
+Optional env:
+- `DB_DIR` (defaults to `data`)
 
-## Code Style Notes
+Local setup:
+- `python3 -m venv venv`
+- `source venv/bin/activate`
+- `pip install -r requirements.txt`
+- `python bot.py`
 
-- **Async handlers**: All telegram handlers are `async` - use `await` for bot API calls
-- **Logging**: Use module-level `logger = logging.getLogger(__name__)` 
-- **Error handling**: User-facing errors go through `CommandHandlers.error_handler`
-- **Markdown/HTML**: Commands use `parse_mode='HTML'` for rich text (see `/story` prompts)
-- **Matthew Dicks quotes**: Maintain the inspirational tone in story-related messages
+## Copilot Coding Preferences for This Repo
 
-## Key Files to Reference
+- Make focused, minimal diffs; avoid unrelated refactors.
+- Follow existing module split under `handlers/` (feature-based files).
+- Add logging with `logger = logging.getLogger(__name__)` where useful.
+- Keep Telegram formatting consistent (`parse_mode='HTML'` where existing handlers use it).
+- If adding a new command, wire it in `bot.py`, implement handler in the relevant `handlers/*_commands.py`, and update user-facing help text.
 
-- `handlers/commands.py`: See `story_command()` and `receive_story()` for conversation pattern
-- `models/story.py`: Study `get_user_stories()` for SQL query patterns
-- `bot.py`: Understand handler registration order (logger group=-1, conversation handlers, then commands)
+## Secret Handling Rules
+
+- Never ask users to paste full secret values in chat.
+- Never print or echo token/key values from `.env`, logs, or runtime output.
+- Use environment variable names only (for example `BOT_TOKEN`, `OPENAI_API_KEY`) when discussing configuration.
+- Keep `.env` local-only and uncommitted; use `.env.example` with placeholder values for sharing.
+- If a secret is exposed in chat or logs, instruct immediate key rotation and replacement.
+
+## Manual Validation Checklist
+
+Because there is no formal test suite yet, validate changes by running the bot and checking:
+1. Conversation start to input to cancel/complete behavior.
+2. Database writes/reads in `stories`, `reminder_preferences`, or `feedback` as applicable.
+3. Unknown command and error handling behavior.
+4. Reminder checks still run without exceptions.
+
+## Out-of-Scope Defaults
+
+- Do not add webhook/server frameworks unless explicitly requested.
+- Do not introduce new storage backends by default.
+- Do not change deployment targets unless requested (Fly config currently exists in repo).
