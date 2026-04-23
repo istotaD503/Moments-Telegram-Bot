@@ -54,30 +54,16 @@ class BasicCommandHandlers:
     
     @staticmethod
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a help message when the command /help is issued."""
-        help_message = (
-            "🤖 <b>Bot Help</b>\n\n"
-            "<b>Getting Started:</b>\n"
-            "• /start - Welcome message\n"
-            "• /help - Show this help message\n"
-            "• /about - Learn about Homework for Life\n\n"
-            "<b>Capture Your Stories:</b>\n"
-            "• /story - Record today's storyworthy moment\n"
-            "• /mystories - View your saved stories\n\n"
-            "<b>Reminders:</b>\n"
-            "• /reminders - ⏰ Manage daily reminders\n\n"
-            "<b>Additional:</b>\n"
-            "• /report - 🧠 AI-powered story report\n\n"
+        await update.message.reply_text(
+            "/start — welcome message\n"
+            "/help — this list\n"
+            "/story — record today's moment\n"
+            "/report — AI story report\n"
+            "/reminders — manage daily reminders\n"
+            "/mystories — your stats + export\n"
+            "/export — download all stories as a file\n"
+            "/about — what is Homework for Life",
         )
-
-        # Add quick action buttons
-        keyboard = [
-            [InlineKeyboardButton("📝 Try Recording a Story", callback_data="quick:story")],
-            [InlineKeyboardButton("⏰ Set Up Reminders", callback_data="quick:reminder")],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(help_message, parse_mode='HTML', reply_markup=reply_markup)
     
     @staticmethod
     async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -117,23 +103,16 @@ class BasicCommandHandlers:
     
     @staticmethod
     async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Handle 'help' quick action callback."""
         query = update.callback_query
         await query.answer()
-        
-        help_message = (
-            "🤖 <b>Bot Help</b>\n\n"
-            "<b>Getting Started:</b>\n"
-            "• /start - Welcome message\n"
-            "• /help - Show this help message\n"
-            "• /about - Learn about Homework for Life\n\n"
-            "<b>Capture Your Stories:</b>\n"
-            "• /story - Record today's storyworthy moment\n"
-            "• /mystories - View your saved stories\n\n"
-            "<b>Reminders:</b>\n"
-            "• /reminders - ⏰ Manage daily reminders\n\n"
-            "<b>Additional:</b>\n"
-            "• /export - Export all your stories as a text file\n\n"
+        await query.edit_message_text(
+            "/start — welcome message\n"
+            "/help — this list\n"
+            "/story — record today's moment\n"
+            "/report — AI story report\n"
+            "/reminders — manage daily reminders\n"
+            "/mystories — your stats + export\n"
+            "/export — download all stories as a file\n"
+            "/about — what is Homework for Life",
         )
-        await query.edit_message_text(help_message, parse_mode='HTML')
         return ConversationHandler.END

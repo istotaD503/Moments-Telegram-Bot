@@ -140,13 +140,11 @@ def main():
     async def post_init(application: Application) -> None:
         """Set bot commands after initialization."""
         commands = [
-            BotCommand("start", "👋 Welcome message"),
-            BotCommand("help", "❓ Show help message"),
             BotCommand("story", "📝 Record today's moment"),
-            BotCommand("mystories", "📚 View your stories"),
+            BotCommand("mystories", "📚 Your stats + export"),
+            BotCommand("report", "🧠 AI story report"),
             BotCommand("reminders", "⏰ Manage daily reminders"),
-            BotCommand("about", "📖 Learn about Homework for Life"),
-            BotCommand("report", "🧠 AI-powered story report"),
+            BotCommand("help", "❓ Commands list"),
         ]
         await application.bot.set_my_commands(commands)
         logger.info("Bot commands registered with Telegram")
