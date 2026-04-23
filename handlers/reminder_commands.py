@@ -2,6 +2,7 @@
 Reminder-related command handlers for the Telegram Bot
 """
 import logging
+import random
 import re
 from datetime import datetime
 import pytz
@@ -14,6 +15,65 @@ logger = logging.getLogger(__name__)
 # Conversation states
 WAITING_FOR_REMINDER_TIME = 2
 WAITING_FOR_TIMEZONE = 3
+
+
+_REMINDER_TEMPLATES = [
+    (
+        "Hey {name}.\n\n"
+        "What moment from today would make a good five-minute story?\n\n"
+        "It doesn't have to be dramatic. A brief exchange, a small decision, a detail that stuck — any of it counts.\n\n"
+        "What's yours? 📝"
+    ),
+    (
+        "Hey {name}.\n\n"
+        "Something happened today. It may have already slipped past you — but something lingered a little longer than the rest.\n\n"
+        "What was it?"
+    ),
+    (
+        "{name} — before the day fully fades:\n\n"
+        "What did you see, hear, or feel today that briefly stopped you?\n\n"
+        "Even for half a second. That's the one."
+    ),
+    (
+        "Hey {name}.\n\n"
+        "Think back through your day. Was there a moment — a pause, a walk, a meal, a conversation that ended — "
+        "where something small felt just a little bigger than expected?\n\n"
+        "Capture it before it's gone. 📝"
+    ),
+    (
+        "Hey {name}!\n\n"
+        "If someone asked you tomorrow what happened today, what would you actually tell them?\n\n"
+        "Not the summary. The moment.\n\n"
+        "Write it down while it's still fresh."
+    ),
+    (
+        "Hey {name}.\n\n"
+        "Today probably wasn't a movie. That's fine — the best material usually isn't.\n\n"
+        "What was the quiet thing that happened anyway?"
+    ),
+    (
+        "Hey {name}.\n\n"
+        "You were somewhere today that you won't be in exactly that way again. What did you notice?\n\n"
+        "Even something small counts. Especially something small."
+    ),
+    (
+        "Hey {name}.\n\n"
+        "Did anything catch you off guard today?\n\n"
+        "A reaction you didn't expect from yourself. A moment that went sideways, or better than it should have. "
+        "A tiny thing that felt oddly meaningful.\n\n"
+        "That's your story."
+    ),
+    (
+        "Hey {name}.\n\n"
+        "Most of today is already fading. Before it fully goes —\n\n"
+        "What moment do you keep coming back to?"
+    ),
+    (
+        "Hey {name}.\n\n"
+        "One question: if your day were a story, what would happen in it?\n\n"
+        "Not everything. Just the moment that would make someone lean in."
+    ),
+]
 
 
 class ReminderCommandHandlers:
@@ -539,7 +599,7 @@ class ReminderCommandHandlers:
             )
         
         return ConversationHandler.END
-    
+
     @staticmethod
     async def send_reminder_to_user(context: ContextTypes.DEFAULT_TYPE, user_id: int, first_name: str = None) -> None:
         """
@@ -548,15 +608,8 @@ class ReminderCommandHandlers:
         """
         if not first_name:
             first_name = "there"
-        
-        reminder_message = (
-            f"🌟 <b>Daily Reminder</b> 🌟\n\n"
-            f"Hey {first_name}! Time for your Homework for Life.\n\n"
-            f"<i>If you had to tell a story from today — a five-minute story onstage "
-            f"about something that took place over the course of this day — what would it be?</i>\n\n"
-            f"Take a moment to reflect on your day. What moment stood out?\n\n"
-            f"Tap the button below to capture it! 👇"
-        )
+
+        reminder_message = random.choice(_REMINDER_TEMPLATES).format(name=first_name)
         
         # Add quick action button for adding a story
         keyboard = [

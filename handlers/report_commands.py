@@ -3,7 +3,9 @@ Report command handler — generates an AI-powered summary of the user's stories
 """
 import html
 import logging
+import os
 import re
+import tempfile
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -84,18 +86,170 @@ async def _generate_and_send_report(stories, reply_to, thinking_msg) -> None:
         ],
     )
 
-    report_text = _md_to_html(response.output_text)
-    header = "🧠 <b>Your Story Report</b>\n\n"
-    full_message = header + report_text
+    intro_md, rest_md = _split_report(response.output_text)
 
-    if len(full_message) <= TELEGRAM_MAX_LENGTH:
-        await thinking_msg.edit_text(full_message, parse_mode='HTML')
+    # Send intro as Telegram message
+    header = "🧠 <b>Your Story Report</b>\n\n"
+    intro_html = _md_to_html(intro_md)
+    full_intro = header + intro_html
+
+    if len(full_intro) <= TELEGRAM_MAX_LENGTH:
+        await thinking_msg.edit_text(full_intro, parse_mode='HTML')
     else:
         await thinking_msg.delete()
-        chunks = _split_text(report_text, TELEGRAM_MAX_LENGTH - len(header))
+        chunks = _split_text(intro_html, TELEGRAM_MAX_LENGTH - len(header))
         await reply_to.reply_text(header + chunks[0], parse_mode='HTML')
         for chunk in chunks[1:]:
             await reply_to.reply_text(chunk, parse_mode='HTML')
+
+    # Send rest as HTML file
+    if rest_md.strip():
+        export_date = datetime.now().strftime('%Y-%m-%d')
+        html_content = _build_report_html(rest_md, period)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+            f.write(html_content)
+            temp_path = f.name
+
+        try:
+            filename = f"report_{export_date}.html"
+            with open(temp_path, 'rb') as doc_file:
+                await reply_to.reply_document(
+                    document=doc_file,
+                    filename=filename,
+                    caption="📄 Full report details"
+                )
+        finally:
+            os.unlink(temp_path)
+
+
+def _split_report(text: str):
+    """Split at the 'Small moments that were bigger' section heading."""
+    lines = text.split('\n')
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('#') and 'small moment' in stripped.lower():
+            intro = '\n'.join(lines[:i]).strip()
+            rest = '\n'.join(lines[i:]).strip()
+            return intro, rest
+    return text, ""
+
+
+def _build_report_html(markdown_text: str, period: str) -> str:
+    """Convert a markdown report section to a styled, phone-friendly HTML file."""
+    export_date = datetime.now().strftime('%Y-%m-%d')
+
+    def inline_md(text):
+        text = html.escape(text)
+        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text, flags=re.DOTALL)
+        text = re.sub(r'__(.+?)__', r'<strong>\1</strong>', text, flags=re.DOTALL)
+        text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text, flags=re.DOTALL)
+        text = re.sub(r'(?<!\w)_(.+?)_(?!\w)', r'<em>\1</em>', text, flags=re.DOTALL)
+        return text
+
+    blocks = re.split(r'\n{2,}', markdown_text.strip())
+    parts = []
+
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        heading_match = re.match(r'^#{1,6} (.+)$', block)
+        if heading_match:
+            parts.append(f'<h3>{inline_md(heading_match.group(1))}</h3>')
+            continue
+
+        lines = block.split('\n')
+        if all(re.match(r'^[ \t]*[*\-] ', ln) for ln in lines if ln.strip()):
+            items = [re.sub(r'^[ \t]*[*\-] ', '', ln) for ln in lines if ln.strip()]
+            lis = ''.join(f'<li>{inline_md(item)}</li>' for item in items)
+            parts.append(f'<ul>{lis}</ul>')
+            continue
+
+        parts.append(f'<p>{inline_md(block)}</p>')
+
+    body = '\n'.join(parts)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Story Report — {html.escape(period)}</title>
+  <style>
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      background: #fafaf8;
+      color: #1a1a1a;
+    }}
+    header {{
+      border-bottom: 2px solid #e8e4de;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }}
+    header h1 {{
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }}
+    header p {{
+      color: #888;
+      font-size: 0.9rem;
+      margin: 0;
+    }}
+    h3 {{
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      border-bottom: 1px solid #e8e4de;
+      padding-bottom: 6px;
+      margin: 32px 0 16px;
+    }}
+    p, li {{
+      font-size: 1rem;
+      line-height: 1.65;
+      color: #2d2d2d;
+    }}
+    p {{ margin: 0 0 16px; }}
+    ul {{
+      margin: 0 0 16px;
+      padding-left: 20px;
+    }}
+    li {{ margin-bottom: 8px; }}
+    strong {{ font-weight: 600; }}
+    em {{ font-style: italic; }}
+    footer {{
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid #e8e4de;
+      font-style: italic;
+      color: #aaa;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Story Report</h1>
+    <p>{html.escape(period)} &middot; {export_date}</p>
+  </header>
+
+  {body}
+
+  <footer>
+    &ldquo;When you start looking for story-worthy moments in your life,
+    you start to see them everywhere.&rdquo;<br>
+    &mdash; Matthew Dicks
+  </footer>
+</body>
+</html>"""
 
 
 def _md_to_html(text: str) -> str:
