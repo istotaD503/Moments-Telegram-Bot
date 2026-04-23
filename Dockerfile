@@ -16,6 +16,7 @@ COPY bot.py .
 COPY config/ ./config/
 COPY handlers/ ./handlers/
 COPY models/ ./models/
+COPY services/ ./services/
 COPY utils/ ./utils/
 COPY assets/ ./assets/
 
