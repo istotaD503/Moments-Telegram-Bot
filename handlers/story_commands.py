@@ -313,7 +313,7 @@ def _build_export_content(stories: list, first_name: str, export_date: str) -> s
 
     entries_html = []
     current_month = None
-    for story in reversed(stories):  # oldest first
+    for story in stories:  # newest first
         raw_date = story['created_at'][:10]
         dt = datetime.strptime(raw_date, '%Y-%m-%d')
         month_heading = dt.strftime('%B %Y')
