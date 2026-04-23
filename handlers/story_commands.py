@@ -125,46 +125,26 @@ class StoryCommandHandlers:
     
     @staticmethod
     async def mystories_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show user's saved stories"""
+        """Show a summary card of the user's stories"""
         user = update.effective_user
-        
-        stories = StoryCommandHandlers.story_db.get_user_stories(user.id, limit=10)
-        
+        stories = StoryCommandHandlers.story_db.get_user_stories(user.id)
+
         if not stories:
-            # Add action button for empty state
             keyboard = [[InlineKeyboardButton("📝 Record Your First Story", callback_data="quick:story")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
             await update.message.reply_text(
-                "📭 You haven't saved any stories yet!\n\n"
-                "Use /story to capture your first moment.",
-                parse_mode='HTML',
-                reply_markup=reply_markup
+                "You haven't saved any moments yet.\n\nUse /story to capture your first one.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             return
-        
-        total_count = StoryCommandHandlers.story_db.count_user_stories(user.id)
-        
-        message = f"📚 <b>Your Stories</b> (showing last {len(stories)} of {total_count}):\n\n"
-        
-        for i, story in enumerate(stories, 1):
-            date = story['created_at'].split(' ')[0]  # Get just the date part
-            story_preview = story['story_text'][:100]
-            if len(story['story_text']) > 100:
-                story_preview += "..."
-            
-            message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
-        
-        message += "💡 <i>Tip: Use /export to download all your stories as a text file.</i>"
-        
-        # Add quick action buttons
+
         keyboard = [
-            [InlineKeyboardButton("📝 Record New Story", callback_data="quick:story")],
-            [InlineKeyboardButton("📥 Export Stories", callback_data="quick:export")],
+            [InlineKeyboardButton("📥 Export All Stories", callback_data="quick:export")],
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+        await update.message.reply_text(
+            _stories_summary(stories),
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     
     @staticmethod
     async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -246,22 +226,8 @@ class StoryCommandHandlers:
             )
             return ConversationHandler.END
         
-        total_count = StoryCommandHandlers.story_db.count_user_stories(user.id)
-        
-        message = f"📚 <b>Your Stories</b> (showing last {len(stories)} of {total_count}):\n\n"
-        
-        for i, story in enumerate(stories, 1):
-            date = story['created_at'].split(' ')[0]
-            story_preview = story['story_text'][:100]
-            if len(story['story_text']) > 100:
-                story_preview += "..."
-            
-            message += f"<b>{i}. {date}</b>\n{story_preview}\n\n"
-        
-        message += "\n💡 Use /story to add a new moment!"
-        message += "\n📥 Use /export to download all your stories as a file."
-        
-        await query.edit_message_text(message, parse_mode='HTML')
+        stories = StoryCommandHandlers.story_db.get_user_stories(user.id)
+        await query.edit_message_text(_stories_summary(stories), parse_mode='HTML')
         return ConversationHandler.END
     
     @staticmethod
@@ -303,6 +269,28 @@ class StoryCommandHandlers:
             os.unlink(temp_path)
 
         return ConversationHandler.END
+
+
+def _stories_summary(stories: list) -> str:
+    total = len(stories)
+    # stories are newest-first
+    first_date = datetime.strptime(stories[-1]['created_at'][:10], '%Y-%m-%d').strftime('%B %-d, %Y')
+    last_date = datetime.strptime(stories[0]['created_at'][:10], '%Y-%m-%d').strftime('%B %-d, %Y')
+
+    from datetime import date, timedelta
+    today = date.today()
+    two_weeks_ago = str(today - timedelta(weeks=2))
+    recent = sum(1 for s in stories if s['created_at'][:10] >= two_weeks_ago)
+
+    lines = [
+        "📚 <b>Your Moments</b>",
+        "",
+        f"Total recorded: <b>{total}</b>",
+        f"First entry: <b>{first_date}</b>",
+        f"Last entry: <b>{last_date}</b>",
+        f"Last 2 weeks: <b>{recent}</b>",
+    ]
+    return "\n".join(lines)
 
 
 def _build_export_content(stories: list, first_name: str, export_date: str) -> str:

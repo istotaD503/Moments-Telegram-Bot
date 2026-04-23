@@ -164,7 +164,6 @@ def main():
             BotCommand("reminders", "⏰ Manage daily reminders"),
             BotCommand("feedback", "💭 Share feedback with developer"),
             BotCommand("about", "📖 Learn about Homework for Life"),
-            BotCommand("export", "📥 Export all stories"),
             BotCommand("report", "🧠 AI-powered story report"),
         ]
         await application.bot.set_my_commands(commands)
