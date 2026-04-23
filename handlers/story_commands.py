@@ -188,6 +188,13 @@ class StoryCommandHandlers:
             os.unlink(temp_path)
     
     @staticmethod
+    async def receive_story_after_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Capture a story from a user who typed directly after receiving a reminder."""
+        if not context.user_data.pop('awaiting_story', False):
+            return
+        await StoryCommandHandlers.receive_story(update, context)
+
+    @staticmethod
     async def story_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle 'story' quick action callback - starts story recording."""
         query = update.callback_query

@@ -609,20 +609,14 @@ class ReminderCommandHandlers:
         if not first_name:
             first_name = "there"
 
+        context.application.user_data[user_id]['awaiting_story'] = True
         reminder_message = random.choice(_REMINDER_TEMPLATES).format(name=first_name)
-        
-        # Add quick action button for adding a story
-        keyboard = [
-            [InlineKeyboardButton("📝 Add Story", callback_data="quick:story")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         try:
             await context.bot.send_message(
                 chat_id=user_id,
                 text=reminder_message,
                 parse_mode='HTML',
-                reply_markup=reply_markup
             )
             logger.info(f"Reminder sent to user {user_id}")
         except Exception as e:
