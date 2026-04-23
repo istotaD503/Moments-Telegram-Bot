@@ -187,33 +187,15 @@ class StoryCommandHandlers:
             )
             return
         
-        # Generate the text file content
         export_date = datetime.now().strftime('%Y-%m-%d')
-        
-        content = f"My Storyworthy Moments\n"
-        content += f"Exported on {export_date}\n"
-        content += f"Total moments: {len(stories)}\n"
-        content += "=" * 50 + "\n\n"
-        
-        for i, story in enumerate(reversed(stories), 1):  # Oldest to newest
-            date = story['created_at'].split(' ')[0]
-            content += f"{i}. {date}\n"
-            content += f"{story['story_text']}\n"
-            content += "-" * 50 + "\n\n"
-        
-        content += "\n" + "=" * 50 + "\n"
-        content += '"When you start looking for story-worthy moments in your life, '
-        content += 'you start to see them everywhere." - Matthew Dicks\n'
-        
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        content = _build_export_content(stories, user.first_name, export_date)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
             f.write(content)
             temp_path = f.name
-        
+
         try:
-            # Send the file
-            filename = f"moments_{user.first_name}_{export_date}.txt"
-            
+            filename = f"moments_{user.first_name}_{export_date}.html"
             with open(temp_path, 'rb') as f:
                 await update.message.reply_document(
                     document=f,
@@ -221,11 +203,8 @@ class StoryCommandHandlers:
                     caption=f"📚 Here are your <b>{len(stories)}</b> storyworthy moments!\n\nKeep capturing life's meaningful moments. ✨",
                     parse_mode='HTML'
                 )
-            
             logger.info(f"Exported {len(stories)} stories for user {user.id} ({user.first_name})")
-            
         finally:
-            # Clean up temporary file
             os.unlink(temp_path)
     
     @staticmethod
@@ -302,31 +281,15 @@ class StoryCommandHandlers:
             )
             return ConversationHandler.END
         
-        # Generate the text file content
         export_date = datetime.now().strftime('%Y-%m-%d')
-        
-        content = f"My Storyworthy Moments\n"
-        content += f"Exported on {export_date}\n"
-        content += f"Total moments: {len(stories)}\n"
-        content += "=" * 50 + "\n\n"
-        
-        for i, story in enumerate(reversed(stories), 1):
-            date = story['created_at'].split(' ')[0]
-            content += f"{i}. {date}\n"
-            content += f"{story['story_text']}\n"
-            content += "-" * 50 + "\n\n"
-        
-        content += "\n" + "=" * 50 + "\n"
-        content += '"When you start looking for story-worthy moments in your life, '
-        content += 'you start to see them everywhere." - Matthew Dicks\n'
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        content = _build_export_content(stories, user.first_name, export_date)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
             f.write(content)
             temp_path = f.name
-        
+
         try:
-            filename = f"moments_{user.first_name}_{export_date}.txt"
-            
+            filename = f"moments_{user.first_name}_{export_date}.html"
             with open(temp_path, 'rb') as f:
                 await query.message.reply_document(
                     document=f,
@@ -334,15 +297,128 @@ class StoryCommandHandlers:
                     caption=f"📚 Here are your <b>{len(stories)}</b> storyworthy moments!\n\nKeep capturing life's meaningful moments. ✨",
                     parse_mode='HTML'
                 )
-            
-            # Edit original message to confirm
-            await query.edit_message_text(
-                f"✅ Exported {len(stories)} stories!\n\nCheck the file above. 📥"
-            )
-            
+            await query.edit_message_text(f"✅ Exported {len(stories)} stories!\n\nCheck the file above. 📥")
             logger.info(f"Exported {len(stories)} stories for user {user.id} ({user.first_name}) via callback")
-            
         finally:
             os.unlink(temp_path)
-        
+
         return ConversationHandler.END
+
+
+def _build_export_content(stories: list, first_name: str, export_date: str) -> str:
+    import html as html_mod
+
+    count = len(stories)
+    story_word = 'moment' if count == 1 else 'moments'
+
+    entries_html = []
+    current_month = None
+    for story in reversed(stories):  # oldest first
+        raw_date = story['created_at'][:10]
+        dt = datetime.strptime(raw_date, '%Y-%m-%d')
+        month_heading = dt.strftime('%B %Y')
+        day_heading = dt.strftime('%B %-d, %Y')
+
+        if month_heading != current_month:
+            if current_month is not None:
+                entries_html.append('</section>')
+            entries_html.append(f'<section><h2>{month_heading}</h2>')
+            current_month = month_heading
+
+        text = html_mod.escape(story['story_text']).replace('\n', '<br>')
+        entries_html.append(
+            f'<article><time>{day_heading}</time><p>{text}</p></article>'
+        )
+
+    if current_month is not None:
+        entries_html.append('</section>')
+
+    body = "\n".join(entries_html)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Storyworthy Moments</title>
+  <style>
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      background: #fafaf8;
+      color: #1a1a1a;
+    }}
+    header {{
+      border-bottom: 2px solid #e8e4de;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }}
+    header h1 {{
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }}
+    header p {{
+      color: #888;
+      font-size: 0.9rem;
+      margin: 0;
+    }}
+    section {{ margin-bottom: 40px; }}
+    h2 {{
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      border-bottom: 1px solid #e8e4de;
+      padding-bottom: 6px;
+      margin-bottom: 20px;
+    }}
+    article {{
+      margin-bottom: 24px;
+      padding-left: 14px;
+      border-left: 3px solid #d4c9b8;
+    }}
+    time {{
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }}
+    p {{
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.65;
+      color: #2d2d2d;
+    }}
+    footer {{
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid #e8e4de;
+      font-style: italic;
+      color: #aaa;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Storyworthy Moments</h1>
+    <p>{html_mod.escape(first_name)} &middot; {export_date} &middot; {count} {story_word}</p>
+  </header>
+
+  {body}
+
+  <footer>
+    &ldquo;When you start looking for story-worthy moments in your life,
+    you start to see them everywhere.&rdquo;<br>
+    &mdash; Matthew Dicks
+  </footer>
+</body>
+</html>"""
