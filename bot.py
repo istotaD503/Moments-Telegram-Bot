@@ -145,6 +145,7 @@ def main():
     telegram_app.add_handler(CommandHandler("export", StoryCommandHandlers.export_command))
     telegram_app.add_handler(CommandHandler("reminders", ReminderCommandHandlers.reminders_command))
     telegram_app.add_handler(CommandHandler("report", ReportCommandHandlers.report_command))
+    telegram_app.add_handler(CallbackQueryHandler(ReportCommandHandlers.report_all_callback, pattern="^report:all$"))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
     telegram_app.add_error_handler(BasicCommandHandlers.error_handler)
     
