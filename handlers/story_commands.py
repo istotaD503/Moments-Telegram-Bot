@@ -234,7 +234,12 @@ class StoryCommandHandlers:
             return ConversationHandler.END
         
         stories = StoryCommandHandlers.story_db.get_user_stories(user.id)
-        await query.edit_message_text(_stories_summary(stories), parse_mode='HTML')
+        keyboard = [[InlineKeyboardButton("📥 Export All Stories", callback_data="quick:export")]]
+        await query.edit_message_text(
+            _stories_summary(stories),
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return ConversationHandler.END
     
     @staticmethod
