@@ -14,13 +14,11 @@ from handlers import (
     BasicCommandHandlers,
     StoryCommandHandlers,
     ReminderCommandHandlers,
-    FeedbackCommandHandlers,
     ReportCommandHandlers,
     quick_action_router,
     WAITING_FOR_STORY,
     WAITING_FOR_REMINDER_TIME,
     WAITING_FOR_TIMEZONE,
-    WAITING_FOR_FEEDBACK
 )
 
 logging.basicConfig(
@@ -122,21 +120,6 @@ def main():
     )
     telegram_app.add_handler(reminder_conversation)
     
-    # Feedback conversation handler
-    feedback_conversation = ConversationHandler(
-        entry_points=[CommandHandler("feedback", FeedbackCommandHandlers.feedback_command)],
-        states={
-            WAITING_FOR_FEEDBACK: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, FeedbackCommandHandlers.receive_feedback)
-            ]
-        },
-        fallbacks=[
-            CommandHandler("cancel", FeedbackCommandHandlers.cancel_feedback),
-            CallbackQueryHandler(FeedbackCommandHandlers.cancel_feedback_callback, pattern="^cancel:feedback")
-        ]
-    )
-    telegram_app.add_handler(feedback_conversation)
-
     # Other commands
     telegram_app.add_handler(CommandHandler("start", BasicCommandHandlers.start_command))
     telegram_app.add_handler(CommandHandler("about", BasicCommandHandlers.about_command))
@@ -162,7 +145,6 @@ def main():
             BotCommand("story", "📝 Record today's moment"),
             BotCommand("mystories", "📚 View your stories"),
             BotCommand("reminders", "⏰ Manage daily reminders"),
-            BotCommand("feedback", "💭 Share feedback with developer"),
             BotCommand("about", "📖 Learn about Homework for Life"),
             BotCommand("report", "🧠 AI-powered story report"),
         ]
