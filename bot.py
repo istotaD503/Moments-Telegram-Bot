@@ -15,6 +15,7 @@ from handlers import (
     StoryCommandHandlers,
     ReminderCommandHandlers,
     FeedbackCommandHandlers,
+    ReportCommandHandlers,
     quick_action_router,
     WAITING_FOR_STORY,
     WAITING_FOR_REMINDER_TIME,
@@ -143,6 +144,7 @@ def main():
     telegram_app.add_handler(CommandHandler("mystories", StoryCommandHandlers.mystories_command))
     telegram_app.add_handler(CommandHandler("export", StoryCommandHandlers.export_command))
     telegram_app.add_handler(CommandHandler("reminders", ReminderCommandHandlers.reminders_command))
+    telegram_app.add_handler(CommandHandler("report", ReportCommandHandlers.report_command))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
     telegram_app.add_error_handler(BasicCommandHandlers.error_handler)
     
@@ -162,6 +164,7 @@ def main():
             BotCommand("feedback", "💭 Share feedback with developer"),
             BotCommand("about", "📖 Learn about Homework for Life"),
             BotCommand("export", "📥 Export all stories"),
+            BotCommand("report", "🧠 AI-powered story report"),
         ]
         await application.bot.set_my_commands(commands)
         logger.info("Bot commands registered with Telegram")

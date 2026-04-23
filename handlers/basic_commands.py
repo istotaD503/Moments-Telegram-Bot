@@ -67,9 +67,10 @@ class BasicCommandHandlers:
             "<b>Reminders:</b>\n"
             "• /reminders - ⏰ Manage daily reminders\n\n"
             "<b>Additional:</b>\n"
-            "• /export - Export all your stories as a text file\n\n"
+            "• /export - Export all your stories as a text file\n"
+            "• /report - 🧠 AI-powered story report\n\n"
         )
-        
+
         # Add quick action buttons
         keyboard = [
             [InlineKeyboardButton("📝 Try Recording a Story", callback_data="quick:story")],

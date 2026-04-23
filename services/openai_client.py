@@ -1,10 +1,11 @@
 import logging
+from typing import Optional
 from openai import AsyncOpenAI
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-_client: AsyncOpenAI | None = None
+_client: Optional[AsyncOpenAI] = None
 
 
 def get_openai_client() -> AsyncOpenAI:
