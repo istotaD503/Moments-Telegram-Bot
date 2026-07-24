@@ -63,3 +63,75 @@ The overall structure is clean and well-organized. The handler/model separation 
 | 7 | `Dockerfile` | Add non-root user + HEALTHCHECK |
 
 The biggest bang-for-buck fixes are #1–4 — they directly affect correctness and reliability of the core feature (reminders).
+
+---
+
+## Production Readiness (2026-07-24)
+
+### Architecture Validation
+
+The following architectural decisions were reviewed and confirmed appropriate
+for the current scale (single user / small group):
+
+- **Single instance**: Telegram's `getUpdates` API only supports one active
+  polling session per bot token. Multi-instance would cause duplicate update
+  processing.
+- **SQLite + persistent volume**: Sufficient for single instance. Volume
+  `moments_data` mounted at `/data` in `fly.toml`.
+- **Polling mode**: Simpler than webhooks for single instance. No need to
+  manage webhook URLs, certificates, or HTTPS.
+- **Single process**: `asyncio` handles concurrency. The reminder check
+  (<100ms) does not block Telegram update handling. Process splitting was
+  considered but rejected — the real issues are bugs (#1, #2, #5), not
+  architecture.
+
+### Not Needed (for current scale)
+
+- Turso / Postgres (data silos only matter with multiple instances)
+- Redis + Celery (job duplication only happens with multiple instances)
+- Webhook migration
+- Process splitting
+
+### GDPR / Privacy Compliance
+
+| Requirement | Status | Notes |
+|---|---|---|
+| `/deleteaccount` command | **Missing** | Users must be able to request data deletion |
+| Privacy policy | **Missing** | Required for GDPR, Reddit ads |
+| Stop logging PII | **Missing** | Architecture review #14: feedback logs content |
+| Encrypt `story_text` | **Missing** | Protect personal stories at rest (Fernet recommended) |
+| `/export` (data portability) | **Implemented** | `story_commands.py` |
+
+### Dev / Prod Environments
+
+Currently single Fly.io app (`moments-bot`). To test without stopping prod:
+
+1. Create separate bot token via BotFather (`@YourMomentsBotDev`)
+2. Create `fly.dev.toml` with `app = 'moments-bot-dev'`
+3. Add `[[mounts]]` with `source = 'moments_data_dev'`
+4. Update GitHub Actions to deploy both apps
+
+### DB Backups
+
+Current state: No automated backups. `scripts/upload-db.sh` handles upload
+only.
+
+Recommended: Add `scripts/backup-db.sh` that downloads DB via SFTP:
+```bash
+fly ssh sftp get /data/stories.db ./backups/stories_$(date +%Y%m%d).db
+```
+
+Run via local cron or Fly.io scheduled Machine.
+
+### Production Launch Checklist
+
+Before Reddit advertisement:
+
+1. Fix critical bugs (architecture review #1-5)
+2. Add `/deleteaccount` command
+3. Add privacy policy (link in `/about`)
+4. Stop logging PII (#14)
+5. Add error tracking (Sentry free tier)
+6. Create landing page (Carrd or similar)
+7. Set up DB backup script
+8. Create dev Fly.io app for testing
