@@ -5,6 +5,7 @@ Telegram Bot for capturing daily storyworthy moments
 
 import logging
 import sys
+import threading
 from telegram import BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(application: Application) -> None:
-    """Set bot commands and schedule reminders after initialization."""
+    """Set bot commands, schedule reminders, and start web server after initialization."""
     commands = [
         BotCommand("story", "📝 Record today's moment"),
         BotCommand("mystories", "📚 Your stats + export"),
@@ -43,6 +44,22 @@ async def post_init(application: Application) -> None:
     from handlers.shared import schedule_all_reminders
     count = schedule_all_reminders(application.job_queue)
     logger.info(f"Scheduled {count} daily reminder(s)")
+
+    # Start FastAPI web server for Mini App in a daemon thread
+    def _start_web_server():
+        import uvicorn
+        from webapp.app import webapp_app
+        try:
+            print("🌐 Starting web server on 0.0.0.0:8080...")
+            uvicorn.run(webapp_app, host="0.0.0.0", port=8080, log_level="warning")
+        except Exception as e:
+            print(f"❌ Web server failed to start: {e}")
+            import traceback
+            traceback.print_exc()
+
+    web_thread = threading.Thread(target=_start_web_server, daemon=True)
+    web_thread.start()
+    logger.info("Web server thread started on port 8080")
 
 
 def main():
@@ -115,6 +132,7 @@ def main():
     telegram_app.add_handler(CommandHandler("reminders", ReminderCommandHandlers.reminders_command))
     telegram_app.add_handler(CommandHandler("report", ReportCommandHandlers.report_command))
     telegram_app.add_handler(CallbackQueryHandler(ReportCommandHandlers.report_all_callback, pattern="^report:all$"))
+    telegram_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, ReminderCommandHandlers.handle_web_app_data))
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, StoryCommandHandlers.receive_story_after_reminder))
     telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
     telegram_app.add_error_handler(BasicCommandHandlers.error_handler)

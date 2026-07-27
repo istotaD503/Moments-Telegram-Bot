@@ -19,6 +19,7 @@ COPY models/ ./models/
 COPY services/ ./services/
 COPY utils/ ./utils/
 COPY assets/ ./assets/
+COPY webapp/ ./webapp/
 
 # Create directory for SQLite database (persistent volume will mount here)
 RUN mkdir -p /data

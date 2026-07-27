@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Set Reminder</title>
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --primary: #e94560;
+      --text: #eee;
+      --text-muted: #aaa;
+      --border: #2a2a4a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      padding-top: env(safe-area-inset-top, 16px);
+    }
+    .container { max-width: 400px; margin: 0 auto; width: 100%; }
+    h2 { font-size: 20px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    select, input[type="time"] {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 16px;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, input[type="time"]:focus {
+      border-color: var(--primary);
+    }
+    .select-wrapper {
+      position: relative;
+    }
+    .select-wrapper::after {
+      content: "▾";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 14px;
+    }
+    .detected-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-left: 8px;
+      vertical-align: middle;
+      font-weight: 600;
+    }
+    .current-time {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .current-time span {
+      color: var(--text);
+      font-weight: 600;
+    }
+    #save-btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+    #save-btn:active { opacity: 0.8; }
+    #save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    .status.success { color: #4ecdc4; }
+    .status.error { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Daily Reminder</h2>
+    <p class="subtitle">Pick a time to get nudged about your story</p>
+
+    <div class="form-group">
+      <label>
+        Timezone
+        <span class="detected-badge" id="detected-badge" style="display:none">AUTO</span>
+      </label>
+      <div class="select-wrapper">
+        <select id="timezone"></select>
+      </div>
+      <div class="current-time" id="current-time"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Reminder Time</label>
+      <input type="time" id="reminder-time" value="09:00">
+    </div>
+
+    <button id="save-btn">Save Reminder</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const TIMEZONES = [
+        "America/New_York",
+        "America/Los_Angeles",
+        "America/Chicago",
+        "America/Denver",
+        "Europe/London",
+        "Europe/Paris",
+        "Asia/Tokyo",
+        "Asia/Shanghai",
+        "Asia/Kolkata",
+        "Australia/Sydney"
+      ];
+
+      const TZ_LABELS = {
+        "America/New_York": "US Eastern",
+        "America/Los_Angeles": "US Pacific",
+        "America/Chicago": "US Central",
+        "America/Denver": "US Mountain",
+        "Europe/London": "London",
+        "Europe/Paris": "Paris / Berlin",
+        "Asia/Tokyo": "Tokyo",
+        "Asia/Shanghai": "Shanghai",
+        "Asia/Kolkata": "India",
+        "Australia/Sydney": "Sydney"
+      };
+
+      var tg = null;
+      try { tg = window.Telegram && window.Telegram.WebApp; } catch (e) {}
+
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          tg.setHeaderColor("#1a1a2e");
+          tg.setBackgroundColor("#1a1a2e");
+        } catch (e) {}
+      }
+
+      // Detect user timezone
+      var detectedTz = "UTC";
+      try {
+        detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch (e) {}
+
+      // Populate select
+      var select = document.getElementById("timezone");
+      var allTz = TIMEZONES.slice();
+      if (allTz.indexOf(detectedTz) === -1) {
+        allTz.push(detectedTz);
+      }
+      allTz.forEach(function (tz) {
+        var opt = document.createElement("option");
+        opt.value = tz;
+        var label = TZ_LABELS[tz] || tz;
+        opt.textContent = label + "  (" + tz + ")";
+        select.appendChild(opt);
+      });
+      select.value = detectedTz;
+
+      // Show auto-detect badge
+      var badge = document.getElementById("detected-badge");
+      if (detectedTz !== "UTC") {
+        badge.style.display = "inline-block";
+      }
+
+      // Update current time display
+      function updateCurrentTime() {
+        var tz = select.value;
+        var now = new Date();
+        var str = now.toLocaleTimeString("en-US", {
+          timeZone: tz,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true
+        });
+        document.getElementById("current-time").innerHTML = "Current time there: <span>" + str + "</span>";
+      }
+      select.addEventListener("change", updateCurrentTime);
+      updateCurrentTime();
+      setInterval(updateCurrentTime, 30000);
+
+      // Save button
+      var saveBtn = document.getElementById("save-btn");
+      var status = document.getElementById("status");
+
+      saveBtn.addEventListener("click", function () {
+        var time = document.getElementById("reminder-time").value;
+        var timezone = select.value;
+
+        if (!time) {
+          status.textContent = "Please select a time";
+          status.className = "status error";
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving...";
+
+        var payload = JSON.stringify({ time: time, timezone: timezone });
+
+        if (tg && tg.sendData) {
+          tg.sendData(payload);
+          status.textContent = "Saved!";
+          status.className = "status success";
+          setTimeout(function () { tg.close(); }, 800);
+        } else {
+          // Fallback for browser testing: POST to API
+          fetch("/api/test-set-reminder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload
+          })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              status.textContent = "Saved! (test mode)";
+              status.className = "status success";
+            } else {
+              status.textContent = data.error || "Something went wrong";
+              status.className = "status error";
+              saveBtn.disabled = false;
+              saveBtn.textContent = "Save Reminder";
+            }
+          })
+          .catch(function () {
+            status.textContent = "Network error";
+            status.className = "status error";
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Save Reminder";
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

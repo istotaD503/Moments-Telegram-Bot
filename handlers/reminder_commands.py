@@ -1,11 +1,13 @@
 """
 Reminder-related command handlers for the Telegram Bot
 """
+import json
 import logging
+import os
 import re
 from datetime import datetime
 import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes, ConversationHandler
 from .shared import story_db, schedule_reminder_job, cancel_reminder_job
 
@@ -14,6 +16,15 @@ logger = logging.getLogger(__name__)
 # Conversation states
 WAITING_FOR_REMINDER_TIME = 2
 WAITING_FOR_TIMEZONE = 3
+
+
+def _get_webapp_url() -> str:
+    """Return the public URL for the Mini App."""
+    url = os.environ.get("WEBAPP_URL")
+    if not url:
+        print("⚠️  WEBAPP_URL env var not set — Mini App buttons will use localhost", flush=True)
+        return "http://localhost:8080"
+    return url
 
 
 class ReminderCommandHandlers:
@@ -51,6 +62,7 @@ class ReminderCommandHandlers:
             status_text = "\n\n🔕 No active reminder set"
         
         keyboard = [
+            [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
             [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
             [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
         ]
@@ -208,6 +220,70 @@ class ReminderCommandHandlers:
         return ConversationHandler.END
     
     @staticmethod
+    async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle data sent from the Telegram Mini App."""
+        user = update.effective_user
+        raw = update.effective_message.web_app_data.data
+
+        try:
+            data = json.loads(raw)
+            time_str = data.get("time")
+            timezone_str = data.get("timezone")
+        except (json.JSONDecodeError, AttributeError):
+            await update.message.reply_text(
+                "⚠️ Something went wrong receiving your data. Please try again or use /setreminder.",
+                parse_mode='HTML',
+            )
+            return
+
+        time_pattern = re.compile(r'^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$')
+        if not time_str or not time_pattern.match(time_str):
+            await update.message.reply_text(
+                "⚠️ Invalid time format. Please try the Mini App again or use /setreminder.",
+                parse_mode='HTML',
+            )
+            return
+
+        try:
+            user_tz = pytz.timezone(timezone_str)
+        except pytz.exceptions.UnknownTimeZoneError:
+            await update.message.reply_text(
+                f"⚠️ Unknown timezone <code>{timezone_str}</code>. Please try again or use /setreminder.",
+                parse_mode='HTML',
+            )
+            return
+
+        try:
+            hour, minute = map(int, time_str.split(':'))
+            now = datetime.now(user_tz)
+            local_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            utc_time = local_time.astimezone(pytz.UTC)
+            utc_time_str = utc_time.strftime('%H:%M')
+
+            story_db.set_reminder(
+                user_id=user.id,
+                reminder_time=utc_time_str,
+                timezone=timezone_str,
+            )
+            schedule_reminder_job(context.application.job_queue, user.id, utc_time_str, timezone_str)
+
+            await update.message.reply_text(
+                f"✅ Reminder set for <b>{time_str}</b> ({timezone_str}).\n\n"
+                f"I'll nudge you every day to capture your moment. 🌟\n\n"
+                f"Use /reminders to manage your settings.",
+                parse_mode='HTML',
+            )
+            logger.info(
+                f"MiniApp reminder set for user {user.id} ({user.first_name}) "
+                f"at {time_str} {timezone_str} (UTC: {utc_time_str})"
+            )
+        except Exception as e:
+            logger.error(f"Error handling web_app_data: {e}")
+            await update.message.reply_text(
+                "😅 Something went wrong setting your reminder. Please try again with /setreminder."
+            )
+    
+    @staticmethod
     async def reminder_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle reminder submenu button clicks."""
         query = update.callback_query
@@ -228,6 +304,7 @@ class ReminderCommandHandlers:
             
             # Create inline keyboard with common timezones
             keyboard = [
+                [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
                 [InlineKeyboardButton("🇺🇸 US Eastern", callback_data="tz:America/New_York"),
                  InlineKeyboardButton("🇺🇸 US Pacific", callback_data="tz:America/Los_Angeles")],
                 [InlineKeyboardButton("🇺🇸 US Central", callback_data="tz:America/Chicago"),
@@ -302,6 +379,7 @@ class ReminderCommandHandlers:
             status_text = "\n\n🔕 No active reminder set"
         
         keyboard = [
+            [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
             [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
             [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
         ]
