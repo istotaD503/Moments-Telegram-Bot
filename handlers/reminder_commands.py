@@ -2,78 +2,18 @@
 Reminder-related command handlers for the Telegram Bot
 """
 import logging
-import random
 import re
 from datetime import datetime
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from .shared import story_db
+from .shared import story_db, schedule_reminder_job, cancel_reminder_job
 
 logger = logging.getLogger(__name__)
 
 # Conversation states
 WAITING_FOR_REMINDER_TIME = 2
 WAITING_FOR_TIMEZONE = 3
-
-
-_REMINDER_TEMPLATES = [
-    (
-        "Hey {name}.\n\n"
-        "What moment from today would make a good five-minute story?\n\n"
-        "It doesn't have to be dramatic. A brief exchange, a small decision, a detail that stuck — any of it counts.\n\n"
-        "What's yours? 📝"
-    ),
-    (
-        "Hey {name}.\n\n"
-        "Something happened today. It may have already slipped past you — but something lingered a little longer than the rest.\n\n"
-        "What was it?"
-    ),
-    (
-        "{name} — before the day fully fades:\n\n"
-        "What did you see, hear, or feel today that briefly stopped you?\n\n"
-        "Even for half a second. That's the one."
-    ),
-    (
-        "Hey {name}.\n\n"
-        "Think back through your day. Was there a moment — a pause, a walk, a meal, a conversation that ended — "
-        "where something small felt just a little bigger than expected?\n\n"
-        "Capture it before it's gone. 📝"
-    ),
-    (
-        "Hey {name}!\n\n"
-        "If someone asked you tomorrow what happened today, what would you actually tell them?\n\n"
-        "Not the summary. The moment.\n\n"
-        "Write it down while it's still fresh."
-    ),
-    (
-        "Hey {name}.\n\n"
-        "Today probably wasn't a movie. That's fine — the best material usually isn't.\n\n"
-        "What was the quiet thing that happened anyway?"
-    ),
-    (
-        "Hey {name}.\n\n"
-        "You were somewhere today that you won't be in exactly that way again. What did you notice?\n\n"
-        "Even something small counts. Especially something small."
-    ),
-    (
-        "Hey {name}.\n\n"
-        "Did anything catch you off guard today?\n\n"
-        "A reaction you didn't expect from yourself. A moment that went sideways, or better than it should have. "
-        "A tiny thing that felt oddly meaningful.\n\n"
-        "That's your story."
-    ),
-    (
-        "Hey {name}.\n\n"
-        "Most of today is already fading. Before it fully goes —\n\n"
-        "What moment do you keep coming back to?"
-    ),
-    (
-        "Hey {name}.\n\n"
-        "One question: if your day were a story, what would happen in it?\n\n"
-        "Not everything. Just the moment that would make someone lean in."
-    ),
-]
 
 
 class ReminderCommandHandlers:
@@ -176,6 +116,7 @@ class ReminderCommandHandlers:
         was_disabled = ReminderCommandHandlers.story_db.disable_reminder(user.id)
         
         if was_disabled:
+            cancel_reminder_job(context.application.job_queue, user.id)
             response = (
                 "🔕 Your daily reminder has been stopped.\n\n"
                 "You can always turn it back on with /setreminder whenever you're ready!\n\n"
@@ -315,6 +256,7 @@ class ReminderCommandHandlers:
             was_disabled = ReminderCommandHandlers.story_db.disable_reminder(user.id)
             
             if was_disabled:
+                cancel_reminder_job(context.application.job_queue, user.id)
                 response = (
                     "🔕 Your daily reminder has been stopped.\n\n"
                     "You can always turn it back on with /reminders whenever you're ready!\n\n"
@@ -521,6 +463,9 @@ class ReminderCommandHandlers:
                 timezone=timezone_str
             )
             
+            # Schedule the daily job
+            schedule_reminder_job(context.application.job_queue, user.id, utc_time_str, timezone_str)
+            
             response = (
                 f"✅ Perfect! Your daily reminder is set for <b>{time_text}</b> ({timezone_str}).\n\n"
                 f"I'll send you a friendly nudge every day at this time to capture your moment.\n\n"
@@ -542,25 +487,3 @@ class ReminderCommandHandlers:
             )
         
         return ConversationHandler.END
-
-    @staticmethod
-    async def send_reminder_to_user(context: ContextTypes.DEFAULT_TYPE, user_id: int, first_name: str = None) -> None:
-        """
-        Send a reminder message to a specific user.
-        This is called by the job queue scheduler.
-        """
-        if not first_name:
-            first_name = "there"
-
-        context.application.user_data[user_id]['awaiting_story'] = True
-        reminder_message = random.choice(_REMINDER_TEMPLATES).format(name=first_name)
-
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=reminder_message,
-                parse_mode='HTML',
-            )
-            logger.info(f"Reminder sent to user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to send reminder to user {user_id}: {e}")

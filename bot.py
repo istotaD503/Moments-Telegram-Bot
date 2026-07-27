@@ -5,7 +5,6 @@ Telegram Bot for capturing daily storyworthy moments
 
 import logging
 import sys
-from datetime import datetime, time as datetime_time, timedelta
 from telegram import BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 
@@ -28,36 +27,23 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-async def check_and_send_reminders(context):
-    """
-    Job that runs periodically to check and send reminders.
-    Checks every minute and sends reminders to users whose time has come.
-    """
-    from models.story import StoryDatabase
-    import pytz
-    
-    db = StoryDatabase()
-    active_reminders = db.get_all_active_reminders()
-    
-    # Get current time in UTC (timezone-aware)
-    now = datetime.now(pytz.UTC)
-    current_time_str = now.strftime('%H:%M')
-    
-    logger.info(f"Checking reminders at {current_time_str} UTC. Found {len(active_reminders)} active reminders.")
-    
-    for reminder in active_reminders:
-        user_id = reminder['user_id']
-        reminder_time = reminder['reminder_time']
-        
-        # Check if current time matches the reminder time
-        if current_time_str == reminder_time:
-            logger.info(f"Sending reminder to user {user_id} at {reminder_time}")
-            
-            # Try to get user's first name from database (from their stories)
-            stories = db.get_user_stories(user_id, limit=1)
-            first_name = stories[0]['first_name'] if stories and stories[0]['first_name'] else None
-            
-            await ReminderCommandHandlers.send_reminder_to_user(context, user_id, first_name)
+
+async def post_init(application: Application) -> None:
+    """Set bot commands and schedule reminders after initialization."""
+    commands = [
+        BotCommand("story", "📝 Record today's moment"),
+        BotCommand("mystories", "📚 Your stats + export"),
+        BotCommand("report", "🧠 AI story report"),
+        BotCommand("reminders", "⏰ Manage daily reminders"),
+        BotCommand("help", "❓ Commands list"),
+    ]
+    await application.bot.set_my_commands(commands)
+    logger.info("Bot commands registered with Telegram")
+
+    from handlers.shared import schedule_all_reminders
+    count = schedule_all_reminders(application.job_queue)
+    logger.info(f"Scheduled {count} daily reminder(s)")
+
 
 def main():
     """Main function to run the Telegram bot"""
@@ -133,27 +119,10 @@ def main():
     telegram_app.add_handler(MessageHandler(filters.COMMAND, BasicCommandHandlers.unknown_command))
     telegram_app.add_error_handler(BasicCommandHandlers.error_handler)
     
-    # Set up job queue for reminders (check every minute)
-    job_queue = telegram_app.job_queue
-    job_queue.run_repeating(check_and_send_reminders, interval=60, first=10)
-    
-    # Register bot commands with Telegram
-    async def post_init(application: Application) -> None:
-        """Set bot commands after initialization."""
-        commands = [
-            BotCommand("story", "📝 Record today's moment"),
-            BotCommand("mystories", "📚 Your stats + export"),
-            BotCommand("report", "🧠 AI story report"),
-            BotCommand("reminders", "⏰ Manage daily reminders"),
-            BotCommand("help", "❓ Commands list"),
-        ]
-        await application.bot.set_my_commands(commands)
-        logger.info("Bot commands registered with Telegram")
-    
     telegram_app.post_init = post_init
     
     print("🚀 Bot running. Press Ctrl+C to stop.")
-    print("⏰ Reminder system activated - checking every minute.")
+    print("⏰ Reminder system activated - daily jobs loaded.")
     
     try:
         telegram_app.run_polling(poll_interval=1)

@@ -6,11 +6,11 @@ The overall structure is clean and well-organized. The handler/model separation 
 
 ## Critical
 
-**1. Duplicate reminder delivery** — `bot.py` job queue checks every 60s and compares HH:MM strings. If the job runs twice within the same minute (which it will), the same user gets the reminder twice. No idempotency guard exists.
+**1. ~~Duplicate reminder delivery~~ FIXED (2026-07-27)** — Replaced 60s polling loop with per-user `run_daily` jobs via APScheduler. Each user gets a named job (`reminder_{user_id}`) scheduled at their reminder time. No string comparison, no duplicate risk. See `handlers/shared.py`.
 
-**2. New DB instance every 60 seconds** — `check_and_send_reminders()` creates a fresh `StoryDatabase()` on every tick instead of reusing the shared instance from `handlers/shared.py`. Over time this leaks connections.
+**2. ~~New DB instance every 60 seconds~~ FIXED (2026-07-27)** — Eliminated entirely. The polling loop that created a fresh `StoryDatabase()` on every tick no longer exists. All handlers use the shared `story_db` instance from `handlers/shared.py`.
 
-**3. DST / timezone display bug** — `reminder_commands.py` builds display time by doing `utc_now.replace(hour=..., minute=...)` and converting. This can produce a time 24h off (date mismatch). More importantly, stored UTC time becomes stale when DST transitions — reminders shift ±1 hour twice a year with no recalculation.
+**3. ~~DST / timezone display bug~~ Partially fixed (2026-07-27)** — The scheduling bug (UTC time treated as local time) was fixed: `schedule_reminder_job` now always schedules in UTC since the DB stores UTC time. The display bug (date mismatch from `utc_now.replace()`) and DST shift on transitions remain open.
 
 ---
 
@@ -18,7 +18,7 @@ The overall structure is clean and well-organized. The handler/model separation 
 
 **4. Tempfile orphan accumulation** — `story_commands.py` creates export tempfiles with `delete=False`. A crash between creation and send leaves orphaned files. No cleanup job exists. Long-running on Fly.io will eventually fill the volume.
 
-**5. No exception handling in the job queue** — If `check_and_send_reminders()` raises, it crashes silently. Reminders stop working entirely until the machine restarts. Needs a top-level `try/except` with logging.
+**5. ~~No exception handling in the job queue~~ FIXED (2026-07-27)** — `daily_reminder_callback` in `handlers/shared.py` wraps the entire body in `try/except Exception` with logging. Failures no longer crash silently.
 
 **6. Export has no pagination** — `story_commands.py` loads ALL user stories into memory for export. Power users with years of daily entries will cause a spike. Needs streaming or chunked export.
 
@@ -48,19 +48,22 @@ The overall structure is clean and well-organized. The handler/model separation 
 
 **15. Export filename not sanitized** — `user.first_name` goes directly into the tempfile name. A name like `../../etc/passwd` is theoretically problematic. Sanitize with `re.sub(r'[^a-zA-Z0-9_-]', '_', ...)`.
 
+**16. PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+  reminder_conversation = ConversationHandler(
+
 ---
 
 ## Suggested Fix Order
 
-| # | File | Fix |
-|---|------|-----|
-| 1 | `bot.py` | Add `sent_at` tracking to prevent duplicate reminders in same minute |
-| 2 | `bot.py` | Pass shared `story_db` into `check_and_send_reminders` instead of instantiating |
-| 3 | `handlers/reminder_commands.py` | Fix DST: store user's timezone string in DB alongside UTC time, recalculate on trigger |
-| 4 | `bot.py` | Wrap job queue callback in `try/except Exception` |
-| 5 | `handlers/story_commands.py` | Add tempfile cleanup + export streaming |
-| 6 | `models/story.py` | Parameterize LIMIT, add index on reminder_preferences |
-| 7 | `Dockerfile` | Add non-root user + HEALTHCHECK |
+| # | File | Fix | Status |
+|---|------|-----|--------|
+| 1 | `bot.py` | Add `sent_at` tracking to prevent duplicate reminders in same minute | **Done** — replaced polling with `run_daily` |
+| 2 | `bot.py` | Pass shared `story_db` into `check_and_send_reminders` instead of instantiating | **Done** — polling loop removed entirely |
+| 3 | `handlers/reminder_commands.py` | Fix DST: store user's timezone string in DB alongside UTC time, recalculate on trigger | **Partially done** — scheduling fixed (UTC), display bug remains |
+| 4 | `bot.py` | Wrap job queue callback in `try/except Exception` | **Done** — in `shared.py:daily_reminder_callback` |
+| 5 | `handlers/story_commands.py` | Add tempfile cleanup + export streaming | Pending |
+| 6 | `models/story.py` | Parameterize LIMIT, add index on reminder_preferences | Pending |
+| 7 | `Dockerfile` | Add non-root user + HEALTHCHECK | Pending |
 
 The biggest bang-for-buck fixes are #1–4 — they directly affect correctness and reliability of the core feature (reminders).
 
@@ -80,10 +83,9 @@ for the current scale (single user / small group):
   `moments_data` mounted at `/data` in `fly.toml`.
 - **Polling mode**: Simpler than webhooks for single instance. No need to
   manage webhook URLs, certificates, or HTTPS.
-- **Single process**: `asyncio` handles concurrency. The reminder check
-  (<100ms) does not block Telegram update handling. Process splitting was
-  considered but rejected — the real issues are bugs (#1, #2, #5), not
-  architecture.
+- **Single process**: `asyncio` handles concurrency. Reminders are now
+  event-driven (`run_daily` jobs) rather than polled, so there is no
+  periodic check that could block Telegram update handling.
 
 ### Not Needed (for current scale)
 
@@ -127,7 +129,7 @@ Run via local cron or Fly.io scheduled Machine.
 
 Before Reddit advertisement:
 
-1. Fix critical bugs (architecture review #1-5)
+1. ~~Fix critical bugs (architecture review #1-5)~~ **Partially done** — #1, #2, #5 fixed (2026-07-27). #3 (DST) still open.
 2. Add `/deleteaccount` command
 3. Add privacy policy (link in `/about`)
 4. Stop logging PII (#14)
