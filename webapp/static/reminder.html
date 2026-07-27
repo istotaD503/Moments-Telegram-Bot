@@ -241,35 +241,24 @@
         var payload = JSON.stringify({ time: time, timezone: timezone });
 
         if (tg && tg.sendData) {
-          tg.sendData(payload);
-          status.textContent = "Saved!";
-          status.className = "status success";
-          setTimeout(function () { tg.close(); }, 800);
-        } else {
-          // Fallback for browser testing: POST to API
-          fetch("/api/test-set-reminder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload
-          })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.ok) {
-              status.textContent = "Saved! (test mode)";
-              status.className = "status success";
-            } else {
-              status.textContent = data.error || "Something went wrong";
-              status.className = "status error";
-              saveBtn.disabled = false;
-              saveBtn.textContent = "Save Reminder";
-            }
-          })
-          .catch(function () {
-            status.textContent = "Network error";
+          try {
+            tg.sendData(payload);
+            status.textContent = "Saved! You can close this window.";
+            status.className = "status success";
+            saveBtn.textContent = "Close";
+            saveBtn.disabled = false;
+            saveBtn.onclick = function () { tg.close(); };
+          } catch (err) {
+            status.textContent = "Error: " + err.message;
             status.className = "status error";
             saveBtn.disabled = false;
             saveBtn.textContent = "Save Reminder";
-          });
+          }
+        } else {
+          status.textContent = "Mini App must be opened from Telegram.";
+          status.className = "status error";
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save Reminder";
         }
       });
     });

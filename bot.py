@@ -28,6 +28,17 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Start FastAPI web server for Mini App in a daemon thread
+def _start_web_server():
+    import uvicorn
+    from webapp.app import webapp_app
+    try:
+        print("🌐 Starting web server on 0.0.0.0:8080...", flush=True)
+        uvicorn.run(webapp_app, host="0.0.0.0", port=8080, log_level="warning")
+    except Exception as e:
+        print(f"❌ Web server failed to start: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
 
 async def post_init(application: Application) -> None:
     """Set bot commands, schedule reminders, and start web server after initialization."""
@@ -45,22 +56,9 @@ async def post_init(application: Application) -> None:
     count = schedule_all_reminders(application.job_queue)
     logger.info(f"Scheduled {count} daily reminder(s)")
 
-    # Start FastAPI web server for Mini App in a daemon thread
-    def _start_web_server():
-        import uvicorn
-        from webapp.app import webapp_app
-        try:
-            print("🌐 Starting web server on 0.0.0.0:8080...")
-            uvicorn.run(webapp_app, host="0.0.0.0", port=8080, log_level="warning")
-        except Exception as e:
-            print(f"❌ Web server failed to start: {e}")
-            import traceback
-            traceback.print_exc()
-
     web_thread = threading.Thread(target=_start_web_server, daemon=True)
     web_thread.start()
     logger.info("Web server thread started on port 8080")
-
 
 def main():
     """Main function to run the Telegram bot"""
@@ -139,8 +137,8 @@ def main():
     
     telegram_app.post_init = post_init
     
-    print("🚀 Bot running. Press Ctrl+C to stop.")
-    print("⏰ Reminder system activated - daily jobs loaded.")
+    logger.info("Bot running. Press Ctrl+C to stop.")
+    logger.info("Reminder system activated - daily jobs loaded.")
     
     try:
         telegram_app.run_polling(poll_interval=1)

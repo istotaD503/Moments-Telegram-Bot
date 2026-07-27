@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime
 import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes, ConversationHandler
 from .shared import story_db, schedule_reminder_job, cancel_reminder_job
 
@@ -22,9 +22,14 @@ def _get_webapp_url() -> str:
     """Return the public URL for the Mini App."""
     url = os.environ.get("WEBAPP_URL")
     if not url:
-        print("⚠️  WEBAPP_URL env var not set — Mini App buttons will use localhost", flush=True)
+        logger.warning("WEBAPP_URL env var not set — Mini App buttons will use localhost")
         return "http://localhost:8080"
     return url
+
+
+def _webapp_reminder_url() -> str:
+    """Return Mini App URL."""
+    return _get_webapp_url() + "/webapp/reminder"
 
 
 class ReminderCommandHandlers:
@@ -62,7 +67,6 @@ class ReminderCommandHandlers:
             status_text = "\n\n🔕 No active reminder set"
         
         keyboard = [
-            [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
             [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
             [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
         ]
@@ -71,10 +75,17 @@ class ReminderCommandHandlers:
         message = (
             "⏰ <b>Reminder Settings</b>\n\n"
             "Set up daily reminders to capture your storyworthy moments.{status_text}\n\n"
-            "Choose an option below:"
+            "Choose an option below, or tap the button at the bottom to use the quick visual picker:"
         ).format(status_text=status_text)
         
         await update.message.reply_text(message, parse_mode='HTML', reply_markup=reply_markup)
+        
+        webapp_markup = ReplyKeyboardMarkup(
+            [[KeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_webapp_reminder_url()))]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+        await update.message.reply_text("👇 Tap below for the quick time picker:", reply_markup=webapp_markup)
     
     @staticmethod
     async def setreminder_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -229,7 +240,7 @@ class ReminderCommandHandlers:
             data = json.loads(raw)
             time_str = data.get("time")
             timezone_str = data.get("timezone")
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError) as e:
             await update.message.reply_text(
                 "⚠️ Something went wrong receiving your data. Please try again or use /setreminder.",
                 parse_mode='HTML',
@@ -265,6 +276,7 @@ class ReminderCommandHandlers:
                 reminder_time=utc_time_str,
                 timezone=timezone_str,
             )
+
             schedule_reminder_job(context.application.job_queue, user.id, utc_time_str, timezone_str)
 
             await update.message.reply_text(
@@ -304,7 +316,6 @@ class ReminderCommandHandlers:
             
             # Create inline keyboard with common timezones
             keyboard = [
-                [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
                 [InlineKeyboardButton("🇺🇸 US Eastern", callback_data="tz:America/New_York"),
                  InlineKeyboardButton("🇺🇸 US Pacific", callback_data="tz:America/Los_Angeles")],
                 [InlineKeyboardButton("🇺🇸 US Central", callback_data="tz:America/Chicago"),
@@ -326,6 +337,13 @@ class ReminderCommandHandlers:
             )
             
             await query.edit_message_text(prompt_message, parse_mode='HTML', reply_markup=reply_markup)
+            
+            webapp_markup = ReplyKeyboardMarkup(
+                [[KeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_webapp_reminder_url()))]],
+                one_time_keyboard=True,
+                resize_keyboard=True
+            )
+            await query.message.reply_text("👇 Or tap below for the quick time picker:", reply_markup=webapp_markup)
             return WAITING_FOR_TIMEZONE
 
         elif action == 'stop':
@@ -379,7 +397,6 @@ class ReminderCommandHandlers:
             status_text = "\n\n🔕 No active reminder set"
         
         keyboard = [
-            [InlineKeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_get_webapp_url() + "/webapp/reminder"))],
             [InlineKeyboardButton("⏰ Set Daily Reminder", callback_data="reminder:set")],
             [InlineKeyboardButton("🔕 Stop Reminders", callback_data="reminder:stop")],
         ]
@@ -388,10 +405,17 @@ class ReminderCommandHandlers:
         message = (
             "⏰ <b>Reminder Settings</b>\n\n"
             "Set up daily reminders to capture your storyworthy moments.{status_text}\n\n"
-            "Choose an option below:"
+            "Choose an option below, or tap the button at the bottom to use the quick visual picker:"
         ).format(status_text=status_text)
         
         await query.edit_message_text(message, parse_mode='HTML', reply_markup=reply_markup)
+        
+        webapp_markup = ReplyKeyboardMarkup(
+            [[KeyboardButton("⚡ Set Reminder (Quick)", web_app=WebAppInfo(url=_webapp_reminder_url()))]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+        await query.message.reply_text("👇 Tap below for the quick time picker:", reply_markup=webapp_markup)
         return ConversationHandler.END
     
     @staticmethod

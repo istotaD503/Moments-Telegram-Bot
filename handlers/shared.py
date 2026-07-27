@@ -127,6 +127,7 @@ def schedule_reminder_job(job_queue, user_id: int, reminder_time_str: str, timez
     Schedule a daily run_daily job for a user's reminder.
     Cancels any existing job for this user first.
     """
+    print(f"⏰ schedule_reminder_job called: user={user_id}, time={reminder_time_str}, tz={timezone_str}", flush=True)
     cancel_reminder_job(job_queue, user_id)
 
     hour, minute = map(int, reminder_time_str.split(':'))
@@ -137,6 +138,7 @@ def schedule_reminder_job(job_queue, user_id: int, reminder_time_str: str, timez
         time=reminder_time,
         name=f"reminder_{user_id}",
     )
+    print(f"⏰ Daily job scheduled for user {user_id} at {reminder_time_str} UTC", flush=True)
     logger.info(f"Scheduled daily reminder for user {user_id} at {reminder_time_str} ({timezone_str})")
 
 
